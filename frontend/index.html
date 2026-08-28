@@ -42,7 +42,9 @@
         </p>
       </section>
 
-      <form class="converter-card" id="converter-form" novalidate>
+      <div class="workspace">
+        <div class="converter-column">
+          <form class="converter-card" id="converter-form" novalidate>
         <div class="form-section">
           <div class="section-heading">
             <div>
@@ -140,28 +142,55 @@
             </svg>
           </button>
         </div>
-      </form>
+          </form>
 
-      <div class="status-message" id="status-message" role="status" aria-live="polite" hidden>
-        <span class="status-spinner" aria-hidden="true"></span>
-        <svg class="status-success-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
-          <path d="M6.5 10.1 9 12.5l4.8-5" />
-        </svg>
-        <svg class="status-error-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
-          <path d="M10 6.3v4.6M10 13.7v.1" />
-        </svg>
-        <span class="status-copy">
-          <strong id="status-title"></strong>
-          <span id="status-detail"></span>
-        </span>
-        <a class="download-link" id="download-link" href="#" download hidden>
-          Download Excel
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19.5h14" />
-          </svg>
-        </a>
+          <div class="status-message" id="status-message" role="status" aria-live="polite" hidden>
+            <span class="status-spinner" aria-hidden="true"></span>
+            <svg class="status-success-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+              <path d="M6.5 10.1 9 12.5l4.8-5" />
+            </svg>
+            <svg class="status-error-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+              <path d="M10 6.3v4.6M10 13.7v.1" />
+            </svg>
+            <span class="status-copy">
+              <strong id="status-title"></strong>
+              <span id="status-detail"></span>
+            </span>
+            <a class="download-link" id="download-link" href="#" download hidden>
+              Download Excel
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19.5h14" />
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <aside class="history-card" aria-labelledby="history-title">
+          <div class="history-header">
+            <div>
+              <span class="history-kicker">This session</span>
+              <h2 id="history-title">Converted files</h2>
+            </div>
+            <span class="history-count" id="history-count">0 files</span>
+          </div>
+          <p class="history-empty" id="history-empty">
+            Successful and failed conversions will appear here.
+          </p>
+          <div class="history-table-wrap" id="history-table-wrap" hidden>
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th scope="col">File</th>
+                  <th scope="col">Template</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="history-body"></tbody>
+            </table>
+          </div>
+        </aside>
       </div>
     </main>
 

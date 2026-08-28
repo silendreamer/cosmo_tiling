@@ -12,10 +12,15 @@ const statusMessage = document.querySelector("#status-message");
 const statusTitle = document.querySelector("#status-title");
 const statusDetail = document.querySelector("#status-detail");
 const downloadLink = document.querySelector("#download-link");
+const historyBody = document.querySelector("#history-body");
+const historyCount = document.querySelector("#history-count");
+const historyEmpty = document.querySelector("#history-empty");
+const historyTableWrap = document.querySelector("#history-table-wrap");
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 let selectedFile = null;
-let downloadUrl = null;
+let historyTotal = 0;
+const downloadUrls = new Set();
 
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) {
@@ -37,13 +42,66 @@ function clearError() {
 }
 
 function clearDownload() {
-  if (downloadUrl) {
-    URL.revokeObjectURL(downloadUrl);
-    downloadUrl = null;
-  }
   downloadLink.hidden = true;
   downloadLink.removeAttribute("download");
   downloadLink.href = "#";
+}
+
+function resetFilePicker() {
+  selectedFile = null;
+  fileInput.value = "";
+  fileCard.hidden = true;
+  dropZone.hidden = false;
+  convertButton.disabled = true;
+  clearError();
+}
+
+function templateLabel(template) {
+  return template === "classica" ? "Classica" : "Saussy";
+}
+
+function addHistoryRecord({ filename, template, status, reason = "", url = "" }) {
+  historyTotal += 1;
+  historyCount.textContent = `${historyTotal} ${historyTotal === 1 ? "file" : "files"}`;
+  historyEmpty.hidden = true;
+  historyTableWrap.hidden = false;
+
+  const row = document.createElement("tr");
+  const fileCell = document.createElement("td");
+  const templateCell = document.createElement("td");
+  const statusCell = document.createElement("td");
+
+  if (status === "success") {
+    const fileLink = document.createElement("a");
+    fileLink.className = "history-file-link";
+    fileLink.href = url;
+    fileLink.download = filename;
+    fileLink.textContent = filename;
+    fileLink.setAttribute("aria-label", `Download ${filename}`);
+    fileCell.append(fileLink);
+  } else {
+    const fileText = document.createElement("span");
+    fileText.className = "history-file-name";
+    fileText.textContent = filename;
+    fileCell.append(fileText);
+  }
+
+  templateCell.textContent = templateLabel(template);
+
+  const badge = document.createElement("span");
+  badge.className = `status-badge is-${status}`;
+  badge.textContent = status === "success" ? "Success" : "Failed";
+  statusCell.append(badge);
+
+  if (reason) {
+    const reasonText = document.createElement("span");
+    reasonText.className = "status-reason";
+    reasonText.textContent = reason;
+    statusCell.append(reasonText);
+  }
+
+  row.append(fileCell, templateCell, statusCell);
+  historyBody.prepend(row);
 }
 
 function hideStatus() {
@@ -81,24 +139,34 @@ async function errorMessage(response) {
     if (typeof body.detail === "string") {
       return body.detail;
     }
+    if (Array.isArray(body.detail)) {
+      const details = body.detail.map((item) => item.msg).filter(Boolean).join(" ");
+      if (details) {
+        return details;
+      }
+    }
   } catch (_error) {
     // The fallback below covers non-JSON platform errors.
   }
+  if (response.status === 404) {
+    return "The conversion service is not available in this deployment. Contact the administrator.";
+  }
   if (response.status === 413) {
     return "This file is too large for the web converter. Choose a PDF under 4 MB.";
+  }
+  if (response.status === 504) {
+    return "The conversion took too long. Try the file again or contact the administrator.";
+  }
+  if (response.status >= 500) {
+    return "The conversion service encountered an error. Try again or contact the administrator.";
   }
   return "The workbook could not be created. Check the PDF and template, then try again.";
 }
 
 function clearFile() {
-  selectedFile = null;
-  fileInput.value = "";
-  fileCard.hidden = true;
-  dropZone.hidden = false;
-  convertButton.disabled = true;
+  resetFilePicker();
   clearDownload();
   hideStatus();
-  clearError();
 }
 
 function selectFile(file) {
@@ -164,11 +232,14 @@ form.addEventListener("submit", async (event) => {
     "Creating your workbook",
     "Reading the PDF and preparing the Excel file. This may take a moment.",
   );
-  statusMessage.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  statusMessage.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
 
+  const attemptedFile = selectedFile;
+  const attemptedTemplate = form.elements.template.value;
   const data = new FormData();
-  data.append("pdf", selectedFile, selectedFile.name);
-  data.append("template", form.elements.template.value);
+  data.append("pdf", attemptedFile, attemptedFile.name);
+  data.append("template", attemptedTemplate);
 
   try {
     const response = await fetch("/api/convert", {
@@ -180,16 +251,24 @@ form.addEventListener("submit", async (event) => {
     }
 
     const workbook = await response.blob();
-    const filename = outputFilename(selectedFile.name);
-    downloadUrl = URL.createObjectURL(workbook);
+    const filename = outputFilename(attemptedFile.name);
+    const downloadUrl = URL.createObjectURL(workbook);
+    downloadUrls.add(downloadUrl);
     downloadLink.href = downloadUrl;
     downloadLink.download = filename;
     downloadLink.hidden = false;
+    addHistoryRecord({
+      filename,
+      template: attemptedTemplate,
+      status: "success",
+      url: downloadUrl,
+    });
     showStatus(
       "success",
       "Your workbook is ready",
       filename,
     );
+    resetFilePicker();
     downloadLink.focus();
   } catch (error) {
     const message = error instanceof TypeError
@@ -197,10 +276,18 @@ form.addEventListener("submit", async (event) => {
       : error instanceof Error
         ? error.message
         : "The conversion failed. Please try again.";
+    addHistoryRecord({
+      filename: attemptedFile.name,
+      template: attemptedTemplate,
+      status: "failed",
+      reason: message,
+    });
     showStatus("error", "Could not create the workbook", message);
   } finally {
     setBusy(false);
   }
 });
 
-window.addEventListener("beforeunload", clearDownload);
+window.addEventListener("beforeunload", () => {
+  downloadUrls.forEach((url) => URL.revokeObjectURL(url));
+});
