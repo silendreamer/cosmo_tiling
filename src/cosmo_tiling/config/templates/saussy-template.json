@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "name": "Saussy Design Selection Sheet",
+  "parser": "saussy",
+  "workbook_title": "SAUSSY TILE ORDER",
+  "header_title": "Saussy Tile Order",
+  "defaults": {
+    "waste_percent_by_type": {
+      "Floor Tile": 12,
+      "Shower wall": 10,
+      "Shower Floor": 10,
+      "KBS Tile": 10,
+      "Backsplash": 10,
+      "Tile": 10
+    }
+  },
+  "reference_rules": "../rules/saussy-reference-orders.json"
+}

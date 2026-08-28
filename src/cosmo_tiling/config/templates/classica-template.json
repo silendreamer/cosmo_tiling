@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "name": "Classica Tile Order",
+  "parser": "classica",
+  "workbook_title": "COSMOPOLITAN TILE ORDER",
+  "header_title": "Classica Tile Order",
+  "defaults": {},
+  "projects": [
+    {
+      "project_match": "Palos Verde Estates 7",
+      "room_order": [
+        "BTHF_OWN",
+        "BTHF_BR2",
+        "BTHF_BR3",
+        "BTHF_BR4",
+        "KITCHEN/inc Pantry",
+        "LNDRY1",
+        "LNDRY2",
+        "BTHPOWDERUP"
+      ],
+      "display_names": {
+        "KITCHEN/inc Pantry": "Kitchen"
+      },
+      "measurements": {
+        "BTHF_OWN|Shower Wall": 235,
+        "BTHF_OWN|Shower Floor": 29,
+        "BTHF_OWN|Floor Tile": 178,
+        "BTHF_BR2|Shower Wall": 104,
+        "BTHF_BR2|Shower Floor": 14,
+        "BTHF_BR2|Floor Tile": 39,
+        "BTHF_BR3|Shower Wall": 104,
+        "BTHF_BR3|Shower Floor": 14,
+        "BTHF_BR3|Floor Tile": 34,
+        "BTHF_BR4|Shower Wall": 108,
+        "BTHF_BR4|Shower Floor": 14,
+        "BTHF_BR4|Floor Tile": 37,
+        "KITCHEN/inc Pantry|Backsplash": 52,
+        "LNDRY1|Floor Tile": 53,
+        "LNDRY2|Floor Tile": 48,
+        "BTHPOWDERUP|Floor Tile": 29
+      },
+      "order_groups": [
+        {
+          "owner": "BTHF_OWN|Shower Floor",
+          "members": ["BTHF_OWN|Shower Floor", "BTHF_BR4|Shower Floor"],
+          "waste_percent": 15
+        },
+        {
+          "owner": "BTHF_OWN|Floor Tile",
+          "members": ["BTHF_OWN|Floor Tile", "LNDRY1|Floor Tile"],
+          "waste_percent": 15
+        },
+        {
+          "owner": "BTHF_BR2|Floor Tile",
+          "members": ["BTHF_BR2|Floor Tile", "BTHF_BR4|Floor Tile"],
+          "waste_percent": 18
+        },
+        {
+          "owner": "BTHF_BR3|Floor Tile",
+          "members": ["BTHF_BR3|Floor Tile", "BTHPOWDERUP|Floor Tile"],
+          "waste_percent": 12
+        }
+      ],
+      "waste_percent": {
+        "BTHF_OWN|Shower Wall": 10,
+        "BTHF_BR2|Shower Wall": 12,
+        "BTHF_BR2|Shower Floor": 10,
+        "BTHF_BR3|Shower Wall": 10,
+        "BTHF_BR3|Shower Floor": 10,
+        "BTHF_BR4|Shower Wall": 10,
+        "KITCHEN/inc Pantry|Backsplash": 10,
+        "LNDRY2|Floor Tile": 22
+      },
+      "schluter_orders": {
+        "J100-AMGB": {"owner": "BTHF_OWN", "quantity": 25},
+        "J100-TSI": {"owner": "BTHF_OWN", "quantity": 2},
+        "J100-TSC": {"owner": "BTHF_BR2", "quantity": 1},
+        "J100-AGRB": {"owner": "BTHF_BR3", "quantity": 6},
+        "J100-TSSG": {"owner": "BTHF_BR3", "quantity": 1},
+        "J100-TSBG": {"owner": "BTHF_BR4", "quantity": 1},
+        "J80-AMGB": {"owner": "KITCHEN/inc Pantry", "quantity": 1}
+      },
+      "grout_orders": {
+        "Prism Bleached Wood (545)": {"owner": "BTHF_OWN", "quantity": 7},
+        "Prism Delorean Gray (165)": {"owner": "BTHF_BR3", "quantity": 1},
+        "Prism Ash (642)": {"owner": "BTHF_BR3", "quantity": 1},
+        "Prism New Taupe (185)": {"owner": "BTHF_BR3", "quantity": 1}
+      },
+      "niche_order": {
+        "owner": "BTHF_OWN",
+        "quantity": 5,
+        "size": "12\"x12\""
+      },
+      "linear_drain": {
+        "room": "BTHF_OWN",
+        "size": "DT0732413-CZ",
+        "description": "Champagne Bronze",
+        "comments": "2 LF ordered from Ferguson"
+      },
+      "add_drain_riser_to": ["BTHF_BR2", "BTHF_BR3", "BTHF_BR4"],
+      "kitchen_caulk": {
+        "room": "KITCHEN/inc Pantry",
+        "description": "Bleached Wood (545) sanded",
+        "quantity": 1
+      }
+    }
+  ]
+}

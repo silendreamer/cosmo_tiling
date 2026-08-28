@@ -1,0 +1,19 @@
+[project]
+name = "cosmopolitan-tile-order"
+version = "0.1.0"
+description = "Convert Classica and Saussy tile-order PDFs into structured Excel workbooks"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1.5",
+    "pdfplumber>=0.11.7",
+]
+
+[project.scripts]
+cosmo-tile-order = "cosmo_tiling.converter:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cosmo_tiling"]

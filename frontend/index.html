@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Convert tile order PDFs into structured Excel workbooks."
+    />
+    <title>Tile Order Converter | Cosmopolitan Tile &amp; Granite</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#converter">Skip to converter</a>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <img
+          class="brand-logo"
+          src="assets/cosmopolitan-logo.png"
+          alt="Cosmopolitan Tile and Granite"
+          width="404"
+          height="124"
+        />
+        <span class="header-label">Internal tools</span>
+      </div>
+    </header>
+
+    <main class="page-shell" id="converter">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">PDF TO EXCEL</p>
+        <h1 id="page-title">Create a tile order workbook.</h1>
+        <p class="intro-copy">
+          Upload a vendor PDF, choose its template, and prepare a structured
+          Excel file for review.
+        </p>
+      </section>
+
+      <form class="converter-card" id="converter-form" novalidate>
+        <div class="form-section">
+          <div class="section-heading">
+            <div>
+              <span class="step-number" aria-hidden="true">01</span>
+              <h2>Upload PDF</h2>
+            </div>
+            <span class="requirement">Required</span>
+          </div>
+
+          <label class="drop-zone" id="drop-zone" for="pdf-file">
+            <input
+              id="pdf-file"
+              name="pdf"
+              type="file"
+              accept="application/pdf,.pdf"
+              required
+            />
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+                <path d="M5 14.5v3A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-3" />
+              </svg>
+            </span>
+            <span class="drop-title">Drop your PDF here</span>
+            <span class="drop-helper">or <span class="browse-text">browse files</span></span>
+            <span class="file-limit">PDF only · 25 MB maximum</span>
+          </label>
+
+          <div class="file-card" id="file-card" hidden>
+            <span class="pdf-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M7 3.5h7l4 4V20.5H7z" />
+                <path d="M14 3.5v4h4M9.5 13h5M9.5 16h3.5" />
+              </svg>
+            </span>
+            <span class="file-details">
+              <strong id="file-name"></strong>
+              <span id="file-size"></span>
+            </span>
+            <button class="remove-file" id="remove-file" type="button" aria-label="Remove selected PDF">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+          <p class="field-error" id="file-error" role="alert" hidden></p>
+        </div>
+
+        <div class="form-section options-section">
+          <div class="section-heading">
+            <div>
+              <span class="step-number" aria-hidden="true">02</span>
+              <h2>Conversion options</h2>
+            </div>
+          </div>
+
+          <fieldset class="template-fieldset">
+            <legend>Template</legend>
+            <p class="field-helper">Select the builder format used by this PDF.</p>
+            <div class="template-options">
+              <label class="template-option">
+                <input type="radio" name="template" value="saussy" checked />
+                <span class="radio-control" aria-hidden="true"></span>
+                <span>
+                  <strong>Saussy</strong>
+                  <small>Design selection sheet</small>
+                </span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="template" value="classica" />
+                <span class="radio-control" aria-hidden="true"></span>
+                <span>
+                  <strong>Classica</strong>
+                  <small>Vendor order</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="checkbox-row" for="corrected">
+            <input id="corrected" name="corrected" type="checkbox" />
+            <span class="checkbox-control" aria-hidden="true">
+              <svg viewBox="0 0 16 16" fill="none"><path d="m3.5 8.2 2.8 2.7 6.2-6" /></svg>
+            </span>
+            <span>
+              <strong>Corrected</strong>
+              <small>Use corrected-order processing when available.</small>
+            </span>
+          </label>
+        </div>
+
+        <div class="form-footer">
+          <p>
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+              <path d="M10 8.5v4M10 6.2v.1" />
+            </svg>
+            Your original PDF will not be modified.
+          </p>
+          <button class="convert-button" id="convert-button" type="submit" disabled>
+            <span>Convert to Excel</span>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 12h14m-5-5 5 5-5 5" />
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      <div class="status-message" id="status-message" role="status" aria-live="polite" hidden>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+          <path d="M6.5 10.1 9 12.5l4.8-5" />
+        </svg>
+        <span>Interface ready. Backend conversion will be connected next.</span>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <span>Cosmopolitan Tile &amp; Granite</span>
+      <span aria-hidden="true">·</span>
+      <span>Tile Order Converter</span>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

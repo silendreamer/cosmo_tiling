@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "name": "Saussy Tile Order",
+  "parser": "saussy",
+  "workbook_title": "SAUSSY TILE ORDER",
+  "header_title": "Saussy Tile Order",
+  "defaults": {
+    "waste_percent_by_type": {
+      "Floor Tile": 12,
+      "Shower wall": 10,
+      "Shower Floor": 10,
+      "KBS Tile": 10,
+      "Backsplash": 10,
+      "Tile": 10
+    }
+  },
+  "projects": [
+    {
+      "project_match": "Lot 104",
+      "room_order": ["BTHF_OWN", "Bath 2 Tile (Tub)", "KITCHEN + Butlers Pantry"],
+      "rows": [
+        {"room": "BTHF_OWN", "type": "Shower wall", "size": "12x24", "description": "Serendra Mila", "measured_qty": 187, "waste_percent": 12, "unit": "SF", "comments": "=96+91", "pattern": "Straight Vertical"},
+        {"room": "BTHF_OWN", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": 5, "unit": "PCS"},
+        {"room": "BTHF_OWN", "type": "Schluter niche", "description": "Large Combo niche", "order_qty": "-", "unit": "-", "comments": "1 Ea Take from shop"},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": 2, "order_formula": "=ROUND((187+46+58)/150,0)", "unit": "SF"},
+        {"room": "BTHF_OWN", "type": "Shower Floor", "size": "1\"", "description": "Savvy Pennies Pewter", "measured_qty": 14, "waste_percent": 10, "unit": "SF", "pattern": "Pennies"},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #542 Graystone", "order_qty": 1, "unit": "PCS"},
+        {"room": "BTHF_OWN", "type": "Floor Tile", "size": "12x24", "description": "Serendra Mila", "order_qty": "-", "unit": "-", "comments": "Included above", "pattern": "1/3 Offset"},
+        {"room": "BTHF_OWN", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "Ordered above 2@ 31\""},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Included above"},
+
+        {"room": "Bath 2 Tile (Tub)", "type": "Shower wall", "size": "3x6", "description": "Catch Gloss Gray", "measured_qty": 81, "waste_percent": 10, "unit": "SF", "pattern": "1/3 Offset Horizontal"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Schluter", "description": "A80 Satin metal trim 5/16\"", "order_qty": 4, "unit": "PCS"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Schluter niche", "description": "Large Combo niche", "order_qty": "-", "unit": "-", "comments": "1 Ea Take from shop"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Caulk", "description": "#165 Delorean Gray Sanded", "order_qty": 1, "unit": "PCS"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Floor Tile", "size": "12x24", "description": "Visconde Matte Silver", "measured_qty": 46, "waste_percent": 12, "unit": "SF", "pattern": "1/3 Offset"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "Ordered with owners 31\""},
+        {"room": "Bath 2 Tile (Tub)", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Caulk", "description": "#165 Delorean Gray Sanded", "order_qty": "-", "unit": "-", "comments": "Included above"},
+
+        {"room": "KITCHEN + Butlers Pantry", "type": "KBS Tile", "size": "4x16", "description": "Catch Gloss White", "measured_qty": 58, "waste_percent": 10, "unit": "SF", "pattern": "Stacked Horizontal"},
+        {"room": "KITCHEN + Butlers Pantry", "type": "Schluter", "description": "A80 Satin metal trim 5/16\"", "order_qty": "-", "unit": "-", "comments": "2L/F Take from shop"},
+        {"room": "KITCHEN + Butlers Pantry", "type": "Grout", "description": "Prism #640 Arctic White", "order_qty": 1, "unit": "PCS"},
+        {"room": "KITCHEN + Butlers Pantry", "type": "Caulk", "description": "#640 Arctic White Sanded", "order_qty": 1, "unit": "PCS"}
+      ]
+    },
+    {
+      "project_match": "Lot 125",
+      "room_order": ["BTHF_PRIM", "Bath 2 Tile(Tub)", "Kitchen"],
+      "rows": [
+        {"room": "BTHF_PRIM", "type": "Shower wall", "size": "12x24", "description": "Serendra Polished Mila", "measured_qty": 102, "waste_percent": 12, "unit": "SF", "pattern": "Straight Vertical"},
+        {"room": "BTHF_PRIM", "type": "Schluter", "description": "3/8\" Satin metal trim", "order_qty": 6, "unit": "PCS"},
+        {"room": "BTHF_PRIM", "type": "Schluter niche", "description": "Combo niche", "order_qty": "-", "unit": "-"},
+        {"room": "BTHF_PRIM", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": 2, "order_formula": "=ROUNDUP((102+87)/150,0)", "unit": "PCS"},
+        {"room": "BTHF_PRIM", "type": "Shower Floor", "size": "1\"", "description": "Savvy Hex Pewter", "measured_qty": 17, "waste_percent": 10, "unit": "SF", "pattern": "Pennies"},
+        {"room": "BTHF_PRIM", "type": "Grout", "description": "Prism #542 Graystone", "order_qty": 1, "unit": "PCS"},
+        {"room": "BTHF_PRIM", "type": "Floor Tile", "size": "12x24", "description": "Serendra Matte Mila", "measured_qty": 87, "waste_percent": 12, "unit": "SF", "pattern": "1/3 Offset"},
+        {"room": "BTHF_PRIM", "type": "Schluter", "description": "3/8\" Satin metal trim", "order_qty": "-", "unit": "-", "comments": "Ord abv"},
+        {"room": "BTHF_PRIM", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Incl abv"},
+
+        {"room": "Bath 2 Tile(Tub)", "type": "Shower wall", "size": "3x6", "description": "Catch Gloss Gray", "measured_qty": 81, "waste_percent": 10, "unit": "SF", "pattern": "1/3 Offset Horizontal"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Schluter", "description": "5/16\" Satin metal trim", "order_qty": 4, "unit": "PCS"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Schluter niche", "description": "Combo niche", "order_qty": "-", "unit": "-", "comments": "1pc @shop"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Incl abv"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Caulk", "description": "#165 Delorean Gray sanded", "order_qty": 1, "unit": "pcs"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Floor Tile", "size": "12x24", "description": "Visconde Matte Silver", "measured_qty": 45, "waste_percent": 12, "unit": "SF", "pattern": "1/3 Offset"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Schluter", "description": "3/8\" Satin metal trim", "order_qty": "-", "unit": "-", "comments": "Ord abv"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Grout", "description": "Prism #165 Delorean Gray", "order_qty": "-", "unit": "-", "comments": "Incl abv"},
+        {"room": "Bath 2 Tile(Tub)", "type": "Caulk", "description": "#165 Delorean Gray sanded", "order_qty": "-", "unit": "-", "comments": "Incl abv"},
+
+        {"room": "Kitchen", "type": "KBS Tile", "size": "3x12", "description": "Catch Gloss White", "measured_qty": 52, "waste_percent": 10, "unit": "SF", "pattern": "Stacked Horizontal"},
+        {"room": "Kitchen", "type": "Schluter", "description": "3/8\" satin metal  trim", "order_qty": "-", "unit": "-", "comments": "2L/F Tak from shop"},
+        {"room": "Kitchen", "type": "Grout", "description": "Prism #640 Arctic White", "order_qty": 1, "unit": "PCS"},
+        {"room": "Kitchen", "type": "Caulk", "description": "#640 Arctic White sanded", "order_qty": 1, "unit": "PCS"}
+      ]
+    },
+    {
+      "project_match": "Zweier",
+      "room_order": ["BTHF_OWN", "Bath 2 Tile (Tub)", "Bath 3 Tile", "Drop Zone Tile", "Laundry Tile", "Fireplace"],
+      "rows": [
+        {"room": "BTHF_OWN", "type": "Shower wall", "size": "3x8", "description": "Passion Gloss White", "measured_qty": 170, "waste_percent": 10, "unit": "SF", "pattern": "Custom pattern: stacked vertical with two horizontal Rosa rows"},
+        {"room": "BTHF_OWN", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": 15, "unit": "PCS"},
+        {"room": "BTHF_OWN", "type": "Accent", "size": "3x8", "description": "Passion Gloss Rosa", "measured_qty": 10, "waste_percent": 10, "unit": "SF", "pattern": "Two horizontal rows"},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": 4, "order_formula": "=ROUND((170+124+81+97+124)/150,0)", "unit": "PCS"},
+        {"room": "BTHF_OWN", "type": "Shower Floor", "size": "1\"", "description": "Savvy Penny Oat", "measured_qty": 23, "waste_percent": 10, "unit": "SF", "pattern": "No Pattern"},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "BTHF_OWN", "type": "Floor Tile", "size": "12x24", "description": "Sterlina Polished Ivory", "measured_qty": 124, "waste_percent": 12, "unit": "SF", "pattern": "1/3 Offset"},
+        {"room": "BTHF_OWN", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "39\" Included above"},
+        {"room": "BTHF_OWN", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": "-", "unit": "-", "comments": "Included above"},
+
+        {"room": "Bath 2 Tile (Tub)", "type": "Shower wall", "size": "3x12", "description": "Raku Gloss White", "measured_qty": 81, "waste_percent": 10, "unit": "SF", "pattern": "Stacked Straight Vertical"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Caulk", "description": "#545 Bleached Wood sanded", "order_qty": 1, "unit": "PCS"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Floor Tile", "size": "12x24", "description": "Jute Ivory", "measured_qty": 97, "waste_percent": 12, "unit": "SF", "pattern": "1/3 Offset"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "2@30 1/2\" Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 2 Tile (Tub)", "type": "Caulk", "description": "#545 Bleached Wood sanded", "order_qty": "-", "unit": "-", "comments": "Included above"},
+
+        {"room": "Bath 3 Tile", "type": "Shower wall", "size": "5x5", "description": "Antigo Ocean", "measured_qty": 124, "waste_percent": 10, "unit": "SF", "pattern": "Stacked Straight Vertical"},
+        {"room": "Bath 3 Tile", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 3 Tile", "type": "Grout", "description": "#645 Steel Blue", "order_qty": 1, "unit": "PCS"},
+        {"room": "Bath 3 Tile", "type": "Shower Floor", "size": "1\"", "description": "Savvy Navy Penny", "measured_qty": 14, "waste_percent": 10, "unit": "SF", "pattern": "No Pattern"},
+        {"room": "Bath 3 Tile", "type": "Grout", "description": "#645 Steel Blue", "order_qty": "-", "unit": "-", "comments": "Included above"},
+        {"room": "Bath 3 Tile", "type": "Floor Tile", "size": "12x24", "description": "Jute Ivory", "order_qty": "-", "unit": "-", "comments": "Included above", "pattern": "1/3 Offset"},
+        {"room": "Bath 3 Tile", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "2@30 1/2\" Included above"},
+        {"room": "Bath 3 Tile", "type": "Grout", "description": "Prism #545 Bleached Wood", "order_qty": "-", "unit": "-", "comments": "Included above"},
+
+        {"room": "Drop Zone Tile", "type": "Tile", "size": "Mosaic", "description": "Rezone Black penny round", "measured_qty": 81, "waste_percent": 10, "unit": "SF", "pattern": "Pattern"},
+        {"room": "Drop Zone Tile", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "35\" Included above"},
+        {"room": "Drop Zone Tile", "type": "Grout", "description": "Prism #19 Pewter", "order_qty": 1, "unit": "PCS"},
+        {"room": "Drop Zone Tile", "type": "Caulk", "description": "", "order_qty": null, "unit": ""},
+
+        {"room": "Laundry Tile", "type": "Tile", "size": "12x12", "description": "Sterlina Matte Henna", "measured_qty": 45, "waste_percent": 10, "unit": "SF", "pattern": "Diagonal checkerboard"},
+        {"room": "Laundry Tile", "type": "Tile", "size": "12x12", "description": "Sterlina Matte Ivory", "measured_qty": 45, "waste_percent": 10, "unit": "SF", "pattern": "Diagonal checkerboard"},
+        {"room": "Laundry Tile", "type": "Schluter", "description": "A100 Satin metal trim 3/8\"", "order_qty": "-", "unit": "-", "comments": "34\"& 30\" included above"},
+        {"room": "Laundry Tile", "type": "Grout", "description": "Prism #172 Urban putty", "order_qty": 1, "unit": "PCS"},
+
+        {"room": "Fireplace", "type": "Field", "description": "Thinbrick", "order_qty": null, "unit": ""},
+        {"room": "Fireplace", "type": "GroutRelease", "description": "GroutRelease", "order_qty": 1, "unit": "GAL"}
+      ]
+    }
+  ]
+}
