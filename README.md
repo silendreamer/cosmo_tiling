@@ -69,22 +69,25 @@ troubleshooting.
 - `src/cosmo_tiling/parsers/common.py` contains the shared `OrderRow` model and text cleanup.
 - `src/cosmo_tiling/config/` contains JSON templates and reference rules.
 
-## Frontend prototype
+## Web app
 
-The backend-free upload interface is in `frontend/`. Preview it locally with:
+The static upload interface is in `frontend/` and posts PDFs to the FastAPI
+function in `api/convert.py`. The function converts the PDF in temporary
+storage and returns the generated workbook directly to the browser. The
+download keeps the PDF filename and changes its extension to `.xlsx`.
+
+Install the project and Vercel CLI, then preview the complete app locally with:
 
 ```powershell
-uv run python -m http.server 8000 --directory frontend
+uv sync
+vercel dev
 ```
 
-Then open `http://localhost:8000`. The form currently handles PDF selection,
-drag-and-drop validation, template selection, and the corrected option; the
-Convert button intentionally stops at a frontend-only status message.
+The web converter accepts PDFs up to 4 MB so the upload and generated workbook
+remain below Vercel's 4.5 MB function payload limit.
 
-## Deployment direction
+## Vercel deployment
 
-The current `frontend/` directory is a static site with no build step, so it can
-be published directly on Cloudflare Pages or Netlify. When PDF conversion is
-wired in, deploy the Python application as a web service (for example, Render)
-and have the browser upload to that service. Generated workbooks should be
-returned directly to the browser rather than retained on the application server.
+Import the repository with the project root set to the repository root (not
+`frontend/`). `vercel.json` publishes `frontend/` as the static site and deploys
+`api/convert.py` as a Python function. No persistent file storage is required.

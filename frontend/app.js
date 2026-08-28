@@ -7,10 +7,15 @@ const fileSize = document.querySelector("#file-size");
 const fileError = document.querySelector("#file-error");
 const removeFileButton = document.querySelector("#remove-file");
 const convertButton = document.querySelector("#convert-button");
+const buttonLabel = convertButton.querySelector(".button-label");
 const statusMessage = document.querySelector("#status-message");
+const statusTitle = document.querySelector("#status-title");
+const statusDetail = document.querySelector("#status-detail");
+const downloadLink = document.querySelector("#download-link");
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_FILE_SIZE = 4 * 1024 * 1024;
 let selectedFile = null;
+let downloadUrl = null;
 
 function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) {
@@ -31,19 +36,75 @@ function clearError() {
   dropZone.classList.remove("has-error");
 }
 
+function clearDownload() {
+  if (downloadUrl) {
+    URL.revokeObjectURL(downloadUrl);
+    downloadUrl = null;
+  }
+  downloadLink.hidden = true;
+  downloadLink.removeAttribute("download");
+  downloadLink.href = "#";
+}
+
+function hideStatus() {
+  statusMessage.hidden = true;
+  statusMessage.className = "status-message";
+  statusMessage.setAttribute("role", "status");
+}
+
+function showStatus(state, title, detail) {
+  statusMessage.className = `status-message is-${state}`;
+  statusMessage.setAttribute("role", state === "error" ? "alert" : "status");
+  statusTitle.textContent = title;
+  statusDetail.textContent = detail;
+  statusMessage.hidden = false;
+}
+
+function setBusy(isBusy) {
+  form.setAttribute("aria-busy", String(isBusy));
+  convertButton.disabled = isBusy || !selectedFile;
+  buttonLabel.textContent = isBusy ? "Creating workbook…" : "Convert to Excel";
+  form.querySelectorAll('input[name="template"]').forEach((input) => {
+    input.disabled = isBusy;
+  });
+  removeFileButton.disabled = isBusy;
+  convertButton.classList.toggle("is-loading", isBusy);
+}
+
+function outputFilename(pdfName) {
+  return `${pdfName.slice(0, -4)}.xlsx`;
+}
+
+async function errorMessage(response) {
+  try {
+    const body = await response.json();
+    if (typeof body.detail === "string") {
+      return body.detail;
+    }
+  } catch (_error) {
+    // The fallback below covers non-JSON platform errors.
+  }
+  if (response.status === 413) {
+    return "This file is too large for the web converter. Choose a PDF under 4 MB.";
+  }
+  return "The workbook could not be created. Check the PDF and template, then try again.";
+}
+
 function clearFile() {
   selectedFile = null;
   fileInput.value = "";
   fileCard.hidden = true;
   dropZone.hidden = false;
   convertButton.disabled = true;
-  statusMessage.hidden = true;
+  clearDownload();
+  hideStatus();
   clearError();
 }
 
 function selectFile(file) {
   clearError();
-  statusMessage.hidden = true;
+  clearDownload();
+  hideStatus();
 
   if (!file) {
     return;
@@ -55,7 +116,7 @@ function selectFile(file) {
     return;
   }
   if (file.size > MAX_FILE_SIZE) {
-    showError("This PDF is larger than 25 MB. Choose a smaller file.");
+    showError("This PDF is larger than 4 MB. Choose a smaller file.");
     return;
   }
 
@@ -88,7 +149,7 @@ dropZone.addEventListener("drop", (event) => {
   selectFile(event.dataTransfer.files[0]);
 });
 
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!selectedFile) {
     showError("Upload a PDF before starting the conversion.");
@@ -96,6 +157,50 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  statusMessage.hidden = false;
+  clearDownload();
+  setBusy(true);
+  showStatus(
+    "processing",
+    "Creating your workbook",
+    "Reading the PDF and preparing the Excel file. This may take a moment.",
+  );
   statusMessage.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const data = new FormData();
+  data.append("pdf", selectedFile, selectedFile.name);
+  data.append("template", form.elements.template.value);
+
+  try {
+    const response = await fetch("/api/convert", {
+      method: "POST",
+      body: data,
+    });
+    if (!response.ok) {
+      throw new Error(await errorMessage(response));
+    }
+
+    const workbook = await response.blob();
+    const filename = outputFilename(selectedFile.name);
+    downloadUrl = URL.createObjectURL(workbook);
+    downloadLink.href = downloadUrl;
+    downloadLink.download = filename;
+    downloadLink.hidden = false;
+    showStatus(
+      "success",
+      "Your workbook is ready",
+      filename,
+    );
+    downloadLink.focus();
+  } catch (error) {
+    const message = error instanceof TypeError
+      ? "The converter could not be reached. Check your connection and try again."
+      : error instanceof Error
+        ? error.message
+        : "The conversion failed. Please try again.";
+    showStatus("error", "Could not create the workbook", message);
+  } finally {
+    setBusy(false);
+  }
 });
+
+window.addEventListener("beforeunload", clearDownload);

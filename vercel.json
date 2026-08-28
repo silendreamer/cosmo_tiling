@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "frontend",
+  "functions": {
+    "api/convert.py": {
+      "maxDuration": 60,
+      "includeFiles": "src/cosmo_tiling/config/**"
+    }
+  }
+}

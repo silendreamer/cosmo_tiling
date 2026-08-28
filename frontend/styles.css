@@ -10,6 +10,7 @@
   --surface: #ffffff;
   --canvas: #f5f6f4;
   --error: #a63d32;
+  --success: #335c48;
   --shadow: 0 18px 55px rgba(42, 55, 66, 0.1);
   --radius: 4px;
 }
@@ -342,6 +343,11 @@ h1 {
   background: #f3e8e6;
 }
 
+.remove-file:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .remove-file svg {
   width: 20px;
   stroke: currentColor;
@@ -408,8 +414,7 @@ h1 {
   outline-offset: 2px;
 }
 
-.template-option input,
-.checkbox-row input {
+.template-option input {
   position: absolute;
   opacity: 0;
 }
@@ -445,69 +450,18 @@ h1 {
 }
 
 .template-option strong,
-.template-option small,
-.checkbox-row strong,
-.checkbox-row small {
+.template-option small {
   display: block;
 }
 
-.template-option strong,
-.checkbox-row strong {
+.template-option strong {
   font-size: 0.84rem;
 }
 
-.template-option small,
-.checkbox-row small {
+.template-option small {
   margin-top: 2px;
   color: var(--muted);
   font-size: 0.7rem;
-}
-
-.checkbox-row {
-  position: relative;
-  display: flex;
-  min-height: 66px;
-  align-items: center;
-  margin-top: 22px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-  cursor: pointer;
-  gap: 12px;
-}
-
-.checkbox-control {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 22px;
-  color: #fff;
-  border: 1.5px solid #89949e;
-  border-radius: 3px;
-  place-items: center;
-  transition: background-color 160ms ease, border-color 160ms ease;
-}
-
-.checkbox-control svg {
-  width: 15px;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2;
-  opacity: 0;
-}
-
-.checkbox-row input:checked + .checkbox-control {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-}
-
-.checkbox-row input:checked + .checkbox-control svg {
-  opacity: 1;
-}
-
-.checkbox-row:has(input:focus-visible) .checkbox-control {
-  outline: 3px solid rgba(240, 184, 61, 0.42);
-  outline-offset: 2px;
 }
 
 .form-footer {
@@ -578,15 +532,34 @@ h1 {
   stroke-width: 1.7;
 }
 
+.button-spinner {
+  display: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(30, 37, 42, 0.28);
+  border-top-color: #1e252a;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.convert-button.is-loading .button-spinner {
+  display: block;
+}
+
+.convert-button.is-loading .button-arrow {
+  display: none;
+}
+
 .status-message {
-  display: flex;
+  display: grid;
   align-items: center;
   margin-top: 16px;
   padding: 14px 16px;
-  color: #335c48;
-  background: #edf6f0;
-  border: 1px solid #c6ddce;
+  color: var(--primary-ink);
+  background: #eef3f6;
+  border: 1px solid #cbd8e0;
   font-size: 0.78rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 10px;
 }
 
@@ -594,13 +567,106 @@ h1 {
   display: none;
 }
 
-.status-message svg {
+.status-success-icon,
+.status-error-icon {
+  display: none;
   width: 20px;
   flex: 0 0 20px;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 1.5;
+}
+
+.status-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(74, 106, 122, 0.24);
+  border-top-color: var(--primary-dark);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+.status-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-copy strong {
+  color: currentColor;
+  font-size: 0.8rem;
+}
+
+.status-copy > span {
+  overflow-wrap: anywhere;
+}
+
+.status-message.is-success {
+  color: var(--success);
+  background: #edf6f0;
+  border-color: #c6ddce;
+}
+
+.status-message.is-success .status-success-icon,
+.status-message.is-error .status-error-icon {
+  display: block;
+}
+
+.status-message.is-success .status-spinner,
+.status-message.is-error .status-spinner {
+  display: none;
+}
+
+.status-message.is-error {
+  color: var(--error);
+  background: #fbf0ee;
+  border-color: #e3c4be;
+}
+
+.download-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  color: #1e252a;
+  background: var(--accent);
+  border-radius: 2px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  gap: 8px;
+  text-decoration: none;
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.download-link[hidden] {
+  display: none;
+}
+
+.download-link:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 5px 14px rgba(91, 70, 21, 0.16);
+}
+
+.download-link:focus-visible {
+  outline: 3px solid rgba(240, 184, 61, 0.48);
+  outline-offset: 3px;
+}
+
+.download-link svg {
+  width: 18px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .site-footer {
@@ -648,6 +714,14 @@ h1 {
   .convert-button {
     width: 100%;
   }
+
+  .status-message {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .download-link {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -656,5 +730,10 @@ h1 {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .button-spinner,
+  .status-spinner {
+    animation: none;
   }
 }

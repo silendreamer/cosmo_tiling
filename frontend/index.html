@@ -68,7 +68,7 @@
             </span>
             <span class="drop-title">Drop your PDF here</span>
             <span class="drop-helper">or <span class="browse-text">browse files</span></span>
-            <span class="file-limit">PDF only · 25 MB maximum</span>
+            <span class="file-limit">PDF only · 4 MB maximum</span>
           </label>
 
           <div class="file-card" id="file-card" hidden>
@@ -122,16 +122,6 @@
             </div>
           </fieldset>
 
-          <label class="checkbox-row" for="corrected">
-            <input id="corrected" name="corrected" type="checkbox" />
-            <span class="checkbox-control" aria-hidden="true">
-              <svg viewBox="0 0 16 16" fill="none"><path d="m3.5 8.2 2.8 2.7 6.2-6" /></svg>
-            </span>
-            <span>
-              <strong>Corrected</strong>
-              <small>Use corrected-order processing when available.</small>
-            </span>
-          </label>
         </div>
 
         <div class="form-footer">
@@ -143,8 +133,9 @@
             Your original PDF will not be modified.
           </p>
           <button class="convert-button" id="convert-button" type="submit" disabled>
-            <span>Convert to Excel</span>
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <span class="button-label">Convert to Excel</span>
+            <span class="button-spinner" aria-hidden="true"></span>
+            <svg class="button-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M5 12h14m-5-5 5 5-5 5" />
             </svg>
           </button>
@@ -152,11 +143,25 @@
       </form>
 
       <div class="status-message" id="status-message" role="status" aria-live="polite" hidden>
-        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <span class="status-spinner" aria-hidden="true"></span>
+        <svg class="status-success-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
           <path d="M6.5 10.1 9 12.5l4.8-5" />
         </svg>
-        <span>Interface ready. Backend conversion will be connected next.</span>
+        <svg class="status-error-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
+          <path d="M10 6.3v4.6M10 13.7v.1" />
+        </svg>
+        <span class="status-copy">
+          <strong id="status-title"></strong>
+          <span id="status-detail"></span>
+        </span>
+        <a class="download-link" id="download-link" href="#" download hidden>
+          Download Excel
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19.5h14" />
+          </svg>
+        </a>
       </div>
     </main>
 
