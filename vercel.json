@@ -5,6 +5,9 @@
     "api/convert.py": {
       "maxDuration": 60,
       "includeFiles": "src/cosmo_tiling/config/**"
+    },
+    "api/conversions.py": {
+      "maxDuration": 30
     }
   }
 }

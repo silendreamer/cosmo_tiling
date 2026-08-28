@@ -76,6 +76,12 @@ function in `api/convert.py`. The function converts the PDF in temporary
 storage and returns the generated workbook directly to the browser. The
 download keeps the PDF filename and changes its extension to `.xlsx`.
 
+Shared conversion metadata is exposed by `api/conversions.py` and stored in a
+private Vercel Blob object at `history/conversions.csv`. Only filenames,
+template, status, failure reason, row count, ID, and timestamp are retained;
+uploaded PDFs and generated workbooks are never written to Blob. The newest
+50 records are loaded initially and older records can be requested in pages.
+
 Install the project and Vercel CLI, then preview the complete app locally with:
 
 ```powershell
@@ -90,4 +96,15 @@ remain below Vercel's 4.5 MB function payload limit.
 
 Import the repository with the project root set to the repository root (not
 `frontend/`). `vercel.json` publishes `frontend/` as the static site and deploys
-`api/convert.py` as a Python function. No persistent file storage is required.
+the Python API functions.
+
+Before deploying, connect a **private Vercel Blob store** to the project. Vercel
+will add `BLOB_READ_WRITE_TOKEN` to the project environment. Pull the updated
+environment for local `vercel dev` runs with:
+
+```powershell
+vercel env pull .env.local
+```
+
+If Blob is unavailable, workbook conversion and download still succeed, but
+the page warns that the conversion was not added to shared history.

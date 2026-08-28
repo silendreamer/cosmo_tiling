@@ -1,20 +1,20 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
       content="Convert tile order PDFs into structured Excel workbooks."
-    />
+    >
     <title>Tile Order Converter | Cosmopolitan Tile &amp; Granite</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;display=swap"
       rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
+    >
+    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
     <a class="skip-link" href="#converter">Skip to converter</a>
@@ -27,7 +27,7 @@
           alt="Cosmopolitan Tile and Granite"
           width="404"
           height="124"
-        />
+        >
         <span class="header-label">Internal tools</span>
       </div>
     </header>
@@ -54,14 +54,14 @@
             <span class="requirement">Required</span>
           </div>
 
-          <label class="drop-zone" id="drop-zone" for="pdf-file">
+          <label class="drop-zone" id="drop-zone">
             <input
               id="pdf-file"
               name="pdf"
               type="file"
               accept="application/pdf,.pdf"
               required
-            />
+            >
             <span class="upload-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
@@ -106,7 +106,7 @@
             <p class="field-helper">Select the builder format used by this PDF.</p>
             <div class="template-options">
               <label class="template-option">
-                <input type="radio" name="template" value="saussy" checked />
+                <input type="radio" name="template" value="saussy" checked>
                 <span class="radio-control" aria-hidden="true"></span>
                 <span>
                   <strong>Saussy</strong>
@@ -114,7 +114,7 @@
                 </span>
               </label>
               <label class="template-option">
-                <input type="radio" name="template" value="classica" />
+                <input type="radio" name="template" value="classica">
                 <span class="radio-control" aria-hidden="true"></span>
                 <span>
                   <strong>Classica</strong>
@@ -167,30 +167,44 @@
           </div>
         </div>
 
-        <aside class="history-card" aria-labelledby="history-title">
+        <section class="history-card" aria-labelledby="history-title">
           <div class="history-header">
             <div>
-              <span class="history-kicker">This session</span>
+              <span class="history-kicker">Shared history</span>
               <h2 id="history-title">Converted files</h2>
             </div>
             <span class="history-count" id="history-count">0 files</span>
           </div>
-          <p class="history-empty" id="history-empty">
-            Successful and failed conversions will appear here.
+          <div class="history-state" id="history-loading" role="status">
+            <span class="history-state-spinner" aria-hidden="true"></span>
+            Loading conversion history…
+          </div>
+          <div class="history-state" id="history-error" role="alert" hidden>
+            <span>Conversion history could not be loaded.</span>
+            <button class="history-action" id="history-retry" type="button">Try again</button>
+          </div>
+          <p class="history-state" id="history-empty" hidden>
+            No conversions have been archived yet.
           </p>
           <div class="history-table-wrap" id="history-table-wrap" hidden>
             <table class="history-table">
+              <caption class="visually-hidden">Shared conversion history, newest first</caption>
               <thead>
                 <tr>
+                  <th scope="col">Date</th>
                   <th scope="col">File</th>
                   <th scope="col">Template</th>
                   <th scope="col">Status</th>
+                  <th scope="col">Details</th>
                 </tr>
               </thead>
               <tbody id="history-body"></tbody>
             </table>
           </div>
-        </aside>
+          <div class="history-footer" id="history-footer" hidden>
+            <button class="history-action" id="history-load-more" type="button">Load more</button>
+          </div>
+        </section>
       </div>
     </main>
 
