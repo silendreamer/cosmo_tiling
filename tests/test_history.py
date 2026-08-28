@@ -1,8 +1,10 @@
 import unittest
+from unittest.mock import Mock, patch
 
 from api._history import (
     ConversionHistory,
     HistoryConflictError,
+    VercelBlobGateway,
     decode_records,
     encode_records,
     new_conversion_record,
@@ -96,6 +98,46 @@ class HistoryTests(unittest.TestCase):
 
         self.assertNotIn("abc123", reason)
         self.assertNotIn("C:\\Users", reason)
+
+    @patch("api._history.httpx.get")
+    def test_oidc_read_uses_store_id_and_request_token(self, mock_get):
+        response = Mock(status_code=404)
+        mock_get.return_value = response
+
+        gateway = VercelBlobGateway(
+            oidc_token="short-lived-token",
+            store_id="store_example123",
+        )
+        content, etag = gateway.read()
+
+        self.assertIsNone(content)
+        self.assertIsNone(etag)
+        request = mock_get.call_args
+        self.assertIn("example123.private.blob.vercel-storage.com", request.args[0])
+        self.assertEqual(
+            request.kwargs["headers"]["Authorization"],
+            "Bearer short-lived-token",
+        )
+        self.assertEqual(
+            request.kwargs["headers"]["x-vercel-blob-store-id"],
+            "example123",
+        )
+
+    @patch("api._history.httpx.put")
+    def test_oidc_conditional_write_includes_store_scope(self, mock_put):
+        response = Mock(status_code=200)
+        response.raise_for_status.return_value = None
+        mock_put.return_value = response
+
+        gateway = VercelBlobGateway(
+            oidc_token="short-lived-token",
+            store_id="store_example123",
+        )
+        gateway.conditional_write(b"csv", '"etag-1"')
+
+        headers = mock_put.call_args.kwargs["headers"]
+        self.assertEqual(headers["x-if-match"], '"etag-1"')
+        self.assertEqual(headers["x-vercel-blob-store-id"], "example123")
 
 
 if __name__ == "__main__":

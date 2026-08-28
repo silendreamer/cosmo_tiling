@@ -98,9 +98,10 @@ Import the repository with the project root set to the repository root (not
 `frontend/`). `vercel.json` publishes `frontend/` as the static site and deploys
 the Python API functions.
 
-Before deploying, connect a **private Vercel Blob store** to the project. Vercel
-will add `BLOB_READ_WRITE_TOKEN` to the project environment. Pull the updated
-environment for local `vercel dev` runs with:
+Before deploying, connect a **private Vercel Blob store** to the project. New
+connections use Vercel's short-lived OIDC credentials and add `BLOB_STORE_ID`;
+legacy connections may provide `BLOB_READ_WRITE_TOKEN`. Pull the updated
+development environment for local `vercel dev` runs with:
 
 ```powershell
 vercel env pull .env.local

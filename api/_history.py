@@ -53,13 +53,48 @@ class HistoryGateway(Protocol):
 
 
 class VercelBlobGateway:
-    def __init__(self, token: str | None = None) -> None:
+    def __init__(
+        self,
+        token: str | None = None,
+        oidc_token: str | None = None,
+        store_id: str | None = None,
+    ) -> None:
         self.token = token or os.getenv("BLOB_READ_WRITE_TOKEN")
-        if not self.token:
-            raise RuntimeError("BLOB_READ_WRITE_TOKEN is not configured.")
-        self.client = BlobClient(token=self.token)
+        self.oidc_token = oidc_token or os.getenv("VERCEL_OIDC_TOKEN")
+        configured_store_id = store_id or os.getenv("BLOB_STORE_ID")
+        self.store_id = (
+            configured_store_id.removeprefix("store_") if configured_store_id else None
+        )
+        if not self.token and not (self.oidc_token and self.store_id):
+            raise RuntimeError("Blob credentials are not available.")
+        self.client = BlobClient(token=self.token) if self.token else None
+
+    def _oidc_headers(self) -> dict[str, str]:
+        if not self.oidc_token or not self.store_id:
+            raise RuntimeError("OIDC Blob credentials are incomplete.")
+        return {
+            "Authorization": f"Bearer {self.oidc_token}",
+            "x-vercel-blob-store-id": self.store_id,
+        }
 
     def read(self) -> tuple[bytes | None, str | None]:
+        if self.client is None:
+            url = (
+                f"https://{self.store_id}.private.blob.vercel-storage.com/"
+                f"{HISTORY_PATH}"
+            )
+            response = httpx.get(
+                url,
+                params={"cache": "0"},
+                headers=self._oidc_headers(),
+                follow_redirects=True,
+                timeout=30,
+            )
+            if response.status_code == 404:
+                return None, None
+            response.raise_for_status()
+            return response.content, response.headers.get("etag")
+
         try:
             result = self.client.get(HISTORY_PATH, access="private", use_cache=False)
         except BlobNotFoundError:
@@ -70,10 +105,9 @@ class VercelBlobGateway:
         api_url = (
             os.getenv("VERCEL_BLOB_API_URL")
             or os.getenv("NEXT_PUBLIC_VERCEL_BLOB_API_URL")
-            or "https://blob.vercel-storage.com"
+            or "https://vercel.com/api/blob"
         )
         headers = {
-            "Authorization": f"Bearer {self.token}",
             "x-api-version": "12",
             "x-add-random-suffix": "0",
             "x-allow-overwrite": "1" if etag else "0",
@@ -81,6 +115,10 @@ class VercelBlobGateway:
             "x-content-type": "text/csv; charset=utf-8",
             "x-vercel-blob-access": "private",
         }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        else:
+            headers.update(self._oidc_headers())
         if etag:
             headers["x-if-match"] = etag
 
@@ -169,8 +207,13 @@ def decode_records(content: bytes | None) -> list[ConversionRecord]:
 
 
 class ConversionHistory:
-    def __init__(self, gateway: HistoryGateway | None = None) -> None:
-        self.gateway = gateway or VercelBlobGateway()
+    def __init__(
+        self,
+        gateway: HistoryGateway | None = None,
+        *,
+        oidc_token: str | None = None,
+    ) -> None:
+        self.gateway = gateway or VercelBlobGateway(oidc_token=oidc_token)
 
     def append(self, record: ConversionRecord) -> None:
         for attempt in range(MAX_APPEND_ATTEMPTS):

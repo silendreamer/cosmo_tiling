@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from api._history import (
@@ -125,9 +125,9 @@ def create_workbook_response(
     )
 
 
-def _save_history(record: ConversionRecord) -> bool:
+def _save_history(record: ConversionRecord, oidc_token: str | None = None) -> bool:
     try:
-        ConversionHistory().append(record)
+        ConversionHistory(oidc_token=oidc_token).append(record)
         return True
     except Exception:  # noqa: BLE001 - history outages must not block conversion
         # Conversion must remain available when the metadata store is unavailable.
@@ -135,7 +135,10 @@ def _save_history(record: ConversionRecord) -> bool:
 
 
 def _failure_response(
-    error: HTTPException, filename: str, template: str
+    error: HTTPException,
+    filename: str,
+    template: str,
+    oidc_token: str | None,
 ) -> JSONResponse:
     reason = sanitize_failure_reason(str(error.detail))
     record = new_conversion_record(
@@ -145,7 +148,7 @@ def _failure_response(
         status="failed",
         failure_reason=reason,
     )
-    saved = _save_history(record)
+    saved = _save_history(record, oidc_token)
     body: dict[str, object] = {"detail": reason, "history_saved": saved}
     if saved:
         body["conversion"] = record.to_dict()
@@ -158,16 +161,18 @@ def _failure_response(
 
 @app.post("/api/convert")
 async def convert_pdf(
+    request: Request,
     pdf: Annotated[UploadFile, File()],
     template: Annotated[str, Form()],
 ) -> Response:
     contents = await pdf.read(MAX_UPLOAD_BYTES + 1)
     await pdf.close()
+    oidc_token = request.headers.get("x-vercel-oidc-token")
     filename = pdf.filename or ""
     try:
         response = create_workbook_response(contents, filename, template)
     except HTTPException as error:
-        return _failure_response(error, filename, template)
+        return _failure_response(error, filename, template, oidc_token)
 
     row_count = int(response.headers["x-order-row-count"])
     record = new_conversion_record(
@@ -177,7 +182,7 @@ async def convert_pdf(
         status="success",
         row_count=row_count,
     )
-    saved = _save_history(record)
+    saved = _save_history(record, oidc_token)
     response.headers["X-Conversion-Id"] = record.id
     response.headers["X-Conversion-Created-At"] = record.created_at_utc
     response.headers["X-History-Saved"] = str(saved).lower()
