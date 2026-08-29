@@ -156,7 +156,7 @@ h1 {
 }
 
 .converter-column {
-  width: min(760px, 100%);
+  width: 100%;
   min-width: 0;
 }
 
@@ -214,10 +214,10 @@ h1 {
 
 .drop-zone {
   display: flex;
-  min-height: 232px;
+  min-height: 176px;
   align-items: center;
   justify-content: center;
-  padding: 28px;
+  padding: 20px;
   border: 1.5px dashed #aab5c0;
   border-radius: var(--radius);
   background: #fafbfb;
@@ -254,9 +254,9 @@ h1 {
 
 .upload-icon {
   display: grid;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 18px;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
   place-items: center;
   color: var(--primary-dark);
   background: #e9eef1;
@@ -264,7 +264,7 @@ h1 {
 }
 
 .upload-icon svg {
-  width: 25px;
+  width: 22px;
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -290,7 +290,7 @@ h1 {
 }
 
 .file-limit {
-  margin-top: 18px;
+  margin-top: 12px;
   color: #7c838b;
   font-size: 0.72rem;
 }
