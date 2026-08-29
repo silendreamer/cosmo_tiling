@@ -117,8 +117,16 @@ class VercelBlobGateway:
             or os.getenv("NEXT_PUBLIC_VERCEL_BLOB_API_URL")
             or "https://vercel.com/api/blob"
         )
+        api_version = (
+            os.getenv("VERCEL_BLOB_API_VERSION_OVERRIDE")
+            or os.getenv("NEXT_PUBLIC_VERCEL_BLOB_API_VERSION_OVERRIDE")
+            or "11"
+        )
+        request_id = f"{self.store_id or 'token'}:{int(time.time() * 1000)}:{uuid4().hex[:8]}"
         headers = {
-            "x-api-version": "12",
+            "x-api-version": api_version,
+            "x-api-blob-request-id": request_id,
+            "x-api-blob-request-attempt": "0",
             "x-add-random-suffix": "0",
             "x-allow-overwrite": "1" if etag else "0",
             "x-cache-control-max-age": "60",

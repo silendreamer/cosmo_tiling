@@ -148,6 +148,9 @@ class HistoryTests(unittest.TestCase):
         gateway.conditional_write(b"csv", '"etag-1"')
 
         headers = mock_put.call_args.kwargs["headers"]
+        self.assertEqual(headers["x-api-version"], "11")
+        self.assertTrue(headers["x-api-blob-request-id"].startswith("example123:"))
+        self.assertEqual(headers["x-api-blob-request-attempt"], "0")
         self.assertEqual(headers["x-if-match"], '"etag-1"')
         self.assertEqual(headers["x-vercel-blob-store-id"], "example123")
 
