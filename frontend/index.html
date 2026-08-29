@@ -99,14 +99,15 @@
               <span class="step-number" aria-hidden="true">02</span>
               <h2>Conversion options</h2>
             </div>
+            <span class="requirement">Required</span>
           </div>
 
-          <fieldset class="template-fieldset">
+          <fieldset class="template-fieldset" aria-describedby="template-helper template-error">
             <legend>Template</legend>
-            <p class="field-helper">Select the builder format used by this PDF.</p>
+            <p class="field-helper" id="template-helper">Select the builder format used by this PDF.</p>
             <div class="template-options">
               <label class="template-option">
-                <input type="radio" name="template" value="saussy" checked>
+                <input type="radio" name="template" value="saussy" required>
                 <span class="radio-control" aria-hidden="true"></span>
                 <span>
                   <strong>Saussy</strong>
@@ -114,7 +115,7 @@
                 </span>
               </label>
               <label class="template-option">
-                <input type="radio" name="template" value="classica">
+                <input type="radio" name="template" value="classica" required>
                 <span class="radio-control" aria-hidden="true"></span>
                 <span>
                   <strong>Classica</strong>
@@ -122,6 +123,7 @@
                 </span>
               </label>
             </div>
+            <p class="field-error" id="template-error" role="alert" hidden></p>
           </fieldset>
 
         </div>

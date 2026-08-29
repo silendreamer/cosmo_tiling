@@ -7,6 +7,8 @@ const fileSize = document.querySelector("#file-size");
 const fileError = document.querySelector("#file-error");
 const removeFileButton = document.querySelector("#remove-file");
 const convertButton = document.querySelector("#convert-button");
+const templateInputs = Array.from(form.querySelectorAll('input[name="template"]'));
+const templateError = document.querySelector("#template-error");
 const buttonLabel = convertButton.querySelector(".button-label");
 const statusMessage = document.querySelector("#status-message");
 const statusTitle = document.querySelector("#status-title");
@@ -25,6 +27,7 @@ const historyLoadMore = document.querySelector("#history-load-more");
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const HISTORY_PAGE_SIZE = 50;
 let selectedFile = null;
+let conversionIsBusy = false;
 let currentDownloadUrl = null;
 let historyOffset = 0;
 let historyTotal = 0;
@@ -55,6 +58,27 @@ function clearError() {
   dropZone.classList.remove("has-error");
 }
 
+function selectedTemplate() {
+  return templateInputs.find((input) => input.checked)?.value || "";
+}
+
+function clearTemplateError() {
+  templateError.hidden = true;
+  templateError.textContent = "";
+}
+
+function updateConvertButtonState() {
+  convertButton.disabled = conversionIsBusy || !selectedFile || !selectedTemplate();
+}
+
+function resetTemplateSelection() {
+  templateInputs.forEach((input) => {
+    input.checked = false;
+  });
+  clearTemplateError();
+  updateConvertButtonState();
+}
+
 function clearDownload() {
   if (currentDownloadUrl) URL.revokeObjectURL(currentDownloadUrl);
   currentDownloadUrl = null;
@@ -68,8 +92,8 @@ function resetFilePicker() {
   fileInput.value = "";
   fileCard.hidden = true;
   dropZone.hidden = false;
-  convertButton.disabled = true;
   clearError();
+  updateConvertButtonState();
 }
 
 function templateLabel(template) {
@@ -187,10 +211,11 @@ function showStatus(state, title, detail) {
 }
 
 function setBusy(isBusy) {
+  conversionIsBusy = isBusy;
   form.setAttribute("aria-busy", String(isBusy));
-  convertButton.disabled = isBusy || !selectedFile;
+  updateConvertButtonState();
   buttonLabel.textContent = isBusy ? "Creating workbook…" : "Convert to Excel";
-  form.querySelectorAll('input[name="template"]').forEach((input) => {
+  templateInputs.forEach((input) => {
     input.disabled = isBusy;
   });
   removeFileButton.disabled = isBusy;
@@ -239,11 +264,17 @@ function selectFile(file) {
   fileSize.textContent = `${formatFileSize(file.size)} · PDF document`;
   dropZone.hidden = true;
   fileCard.hidden = false;
-  convertButton.disabled = false;
+  updateConvertButtonState();
 }
 
 fileInput.addEventListener("change", () => selectFile(fileInput.files[0]));
 removeFileButton.addEventListener("click", clearFile);
+templateInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    clearTemplateError();
+    updateConvertButtonState();
+  });
+});
 historyRetry.addEventListener("click", () => loadHistory({ reset: true }));
 historyLoadMore.addEventListener("click", () => loadHistory());
 
@@ -270,13 +301,20 @@ form.addEventListener("submit", async (event) => {
     dropZone.focus();
     return;
   }
+  const attemptedTemplate = selectedTemplate();
+  if (!attemptedTemplate) {
+    templateError.textContent = "Choose either the Saussy or Classica template.";
+    templateError.hidden = false;
+    templateInputs[0].focus();
+    updateConvertButtonState();
+    return;
+  }
   clearDownload();
   setBusy(true);
   showStatus("processing", "Creating your workbook", "Reading the PDF and preparing the Excel file. This may take a moment.");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   statusMessage.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
   const attemptedFile = selectedFile;
-  const attemptedTemplate = form.elements.template.value;
   const data = new FormData();
   data.append("pdf", attemptedFile, attemptedFile.name);
   data.append("template", attemptedTemplate);
@@ -322,6 +360,7 @@ form.addEventListener("submit", async (event) => {
       : `${filename} — ready to download, but it was not added to shared history.`;
     showStatus("success", "Your workbook is ready", detail);
     resetFilePicker();
+    resetTemplateSelection();
     downloadLink.focus();
   } catch (error) {
     const message = error instanceof TypeError
