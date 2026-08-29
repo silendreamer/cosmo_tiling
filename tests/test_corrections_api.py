@@ -36,7 +36,7 @@ class CorrectionsApiTests(unittest.TestCase):
         self.assertTrue(body["actions"])
         self.assertFalse(body["requires_review"])
 
-    @patch("api.corrections._save_history", return_value=False)
+    @patch("api.corrections._save_history", return_value=(False, "blob-http-403"))
     @patch.dict("os.environ", {}, clear=True)
     def test_generate_returns_corrected_workbook(self, _mock_history):
         client = TestClient(app)

@@ -202,18 +202,24 @@ async def generate_corrected_order(
         applied_change_count=applied_count,
         warning_count=warning_count,
     )
-    saved = _save_history(record, request.headers.get("x-vercel-oidc-token"))
+    saved, history_error = _save_history(
+        record,
+        request.headers.get("x-vercel-oidc-token"),
+    )
+    headers = {
+        "Cache-Control": "no-store",
+        "Content-Disposition": _content_disposition(output_name),
+        "X-Order-Row-Count": str(len(rows)),
+        "X-Applied-Change-Count": str(applied_count),
+        "X-Warning-Count": str(warning_count),
+        "X-Conversion-Id": record.id,
+        "X-Conversion-Created-At": record.created_at_utc,
+        "X-History-Saved": str(saved).lower(),
+    }
+    if history_error:
+        headers["X-History-Error"] = history_error
     return Response(
         content=workbook,
         media_type=XLSX_MEDIA_TYPE,
-        headers={
-            "Cache-Control": "no-store",
-            "Content-Disposition": _content_disposition(output_name),
-            "X-Order-Row-Count": str(len(rows)),
-            "X-Applied-Change-Count": str(applied_count),
-            "X-Warning-Count": str(warning_count),
-            "X-Conversion-Id": record.id,
-            "X-Conversion-Created-At": record.created_at_utc,
-            "X-History-Saved": str(saved).lower(),
-        },
+        headers=headers,
     )

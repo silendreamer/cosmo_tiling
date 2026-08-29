@@ -44,7 +44,7 @@ class ApiTests(unittest.TestCase):
             )
         self.assertEqual(context.exception.status_code, 413)
 
-    @patch("api.convert._save_history", return_value=False)
+    @patch("api.convert._save_history", return_value=(False, "blob-http-403"))
     @patch("api.convert.convert")
     def test_success_survives_history_outage_and_returns_metadata_headers(
         self,
@@ -65,10 +65,11 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, b"workbook")
         self.assertEqual(response.headers["x-history-saved"], "false")
+        self.assertEqual(response.headers["x-history-error"], "blob-http-403")
         self.assertTrue(response.headers["x-conversion-id"])
         self.assertTrue(response.headers["x-conversion-created-at"].endswith("Z"))
 
-    @patch("api.convert._save_history", return_value=True)
+    @patch("api.convert._save_history", return_value=(True, ""))
     def test_failed_conversion_returns_saved_record(self, _mock_save_history):
         response = TestClient(app).post(
             "/api/convert",

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
 
+import httpx
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 
@@ -125,13 +126,21 @@ def create_workbook_response(
     )
 
 
-def _save_history(record: ConversionRecord, oidc_token: str | None = None) -> bool:
+def _save_history(
+    record: ConversionRecord,
+    oidc_token: str | None = None,
+) -> tuple[bool, str]:
     try:
         ConversionHistory(oidc_token=oidc_token).append(record)
-        return True
-    except Exception:  # noqa: BLE001 - history outages must not block conversion
+        return True, ""
+    except httpx.HTTPStatusError as error:
+        return False, f"blob-http-{error.response.status_code}"
+    except RuntimeError:
+        return False, "blob-configuration"
+    except Exception as error:  # noqa: BLE001 - history outages must not block conversion
         # Conversion must remain available when the metadata store is unavailable.
-        return False
+        error_name = re.sub(r"[^a-z0-9-]", "-", type(error).__name__.casefold())
+        return False, f"blob-{error_name[:48]}"
 
 
 def _failure_response(
@@ -148,8 +157,12 @@ def _failure_response(
         status="failed",
         failure_reason=reason,
     )
-    saved = _save_history(record, oidc_token)
-    body: dict[str, object] = {"detail": reason, "history_saved": saved}
+    saved, history_error = _save_history(record, oidc_token)
+    body: dict[str, object] = {
+        "detail": reason,
+        "history_saved": saved,
+        "history_error": history_error,
+    }
     if saved:
         body["conversion"] = record.to_dict()
     return JSONResponse(
@@ -182,8 +195,10 @@ async def convert_pdf(
         status="success",
         row_count=row_count,
     )
-    saved = _save_history(record, oidc_token)
+    saved, history_error = _save_history(record, oidc_token)
     response.headers["X-Conversion-Id"] = record.id
     response.headers["X-Conversion-Created-At"] = record.created_at_utc
     response.headers["X-History-Saved"] = str(saved).lower()
+    if history_error:
+        response.headers["X-History-Error"] = history_error
     return response
