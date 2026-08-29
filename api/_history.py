@@ -19,9 +19,14 @@ HISTORY_FIELDS = (
     "source_filename",
     "output_filename",
     "template",
+    "order_type",
+    "original_filename",
+    "corrected_filename",
     "status",
     "failure_reason",
     "row_count",
+    "applied_change_count",
+    "warning_count",
     "created_at_utc",
 )
 MAX_APPEND_ATTEMPTS = 5
@@ -37,9 +42,14 @@ class ConversionRecord:
     source_filename: str
     output_filename: str
     template: str
+    order_type: str
+    original_filename: str
+    corrected_filename: str
     status: str
     failure_reason: str
     row_count: int | None
+    applied_change_count: int | None
+    warning_count: int | None
     created_at_utc: str
 
     def to_dict(self) -> dict[str, object]:
@@ -140,17 +150,27 @@ def new_conversion_record(
     output_filename: str,
     template: str,
     status: str,
+    order_type: str = "new",
+    original_filename: str = "",
+    corrected_filename: str = "",
     failure_reason: str = "",
     row_count: int | None = None,
+    applied_change_count: int | None = None,
+    warning_count: int | None = None,
 ) -> ConversionRecord:
     return ConversionRecord(
         id=str(uuid4()),
         source_filename=source_filename,
         output_filename=output_filename,
         template=template,
+        order_type=order_type,
+        original_filename=original_filename,
+        corrected_filename=corrected_filename,
         status=status,
         failure_reason=sanitize_failure_reason(failure_reason),
         row_count=row_count,
+        applied_change_count=applied_change_count,
+        warning_count=warning_count,
         created_at_utc=datetime.now(UTC).isoformat().replace("+00:00", "Z"),
     )
 
@@ -178,6 +198,10 @@ def encode_records(records: list[ConversionRecord]) -> bytes:
     for record in records:
         row = record.to_dict()
         row["row_count"] = "" if record.row_count is None else record.row_count
+        row["applied_change_count"] = (
+            "" if record.applied_change_count is None else record.applied_change_count
+        )
+        row["warning_count"] = "" if record.warning_count is None else record.warning_count
         writer.writerow(row)
     return stream.getvalue().encode("utf-8")
 
@@ -191,15 +215,22 @@ def decode_records(content: bytes | None) -> list[ConversionRecord]:
         if not row or not row.get("id"):
             continue
         count = (row.get("row_count") or "").strip()
+        applied_count = (row.get("applied_change_count") or "").strip()
+        warning_count = (row.get("warning_count") or "").strip()
         records.append(
             ConversionRecord(
                 id=row["id"],
                 source_filename=row.get("source_filename", ""),
                 output_filename=row.get("output_filename", ""),
                 template=row.get("template", ""),
+                order_type=row.get("order_type", "new") or "new",
+                original_filename=row.get("original_filename", ""),
+                corrected_filename=row.get("corrected_filename", ""),
                 status=row.get("status", "failed"),
                 failure_reason=row.get("failure_reason", ""),
                 row_count=int(count) if count else None,
+                applied_change_count=int(applied_count) if applied_count else None,
+                warning_count=int(warning_count) if warning_count else None,
                 created_at_utc=row.get("created_at_utc", ""),
             )
         )

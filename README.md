@@ -76,11 +76,27 @@ function in `api/convert.py`. The function converts the PDF in temporary
 storage and returns the generated workbook directly to the browser. The
 download keeps the PDF filename and changes its extension to `.xlsx`.
 
+The **Corrected order** flow accepts an original and revised Classica PDF. It
+analyzes deterministic selection differences, requests review for uncertain
+prose instructions, and returns a single `-Corrected.xlsx` workbook with a
+`Revision Report` audit sheet. Each PDF may be up to 4 MB, while the pair must
+be 4 MB or smaller in total. Corrected Saussy orders remain disabled until a
+real original/revised fixture is available. See
+[`docs/corrected-order-workflow.md`](docs/corrected-order-workflow.md) for the
+behavior and acceptance contract.
+
 Shared conversion metadata is exposed by `api/conversions.py` and stored in a
 private Vercel Blob object at `history/conversions.csv`. Only filenames,
-template, status, failure reason, row count, ID, and timestamp are retained;
+order/template type, status, failure reason, row/change/warning counts, ID, and timestamp are retained;
 uploaded PDFs and generated workbooks are never written to Blob. The newest
 50 records are loaded initially and older records can be requested in pages.
+
+Optional correction-prose interpretation uses the OpenAI Responses API. Set
+`OPENAI_API_KEY` on the server and optionally override the default model with
+`OPENAI_CORRECTION_MODEL` (default `gpt-5.6-terra`). Only redacted correction
+snippets and candidate rows are sent; raw PDFs are not sent. If the key or API
+is unavailable, deterministic analysis continues and unmatched instructions
+are sent to user review.
 
 Install the project and Vercel CLI, then preview the complete app locally with:
 

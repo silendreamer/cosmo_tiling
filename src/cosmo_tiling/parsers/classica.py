@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections import OrderedDict
 
-from cosmo_tiling.parsers.common import OrderRow, clean_text
+from cosmo_tiling.parsers.common import OrderRow
 
 QUANTITY_RE = re.compile(
     r"\s+(?P<quantity>\d+(?:\.\d+)?)\s*(?P<unit>SF|EA|LF|PC|PCS|BOX|BOXES)\s*$",
@@ -60,11 +60,50 @@ def parse_metadata(lines: list[str]) -> OrderedDict[str, str]:
         if line:
             metadata[label] = line.split(":", 1)[1].strip()
 
-    permit_index = next((i for i, line in enumerate(header) if line.startswith("Permit Number:")), -1)
-    if permit_index >= 2:
-        metadata["Job Address"] = header[permit_index - 2]
-    if permit_index >= 4 and not header[permit_index - 4].startswith("Phone:"):
-        metadata["Customer"] = header[permit_index - 4]
+    address_line = next(
+        (
+            line
+            for line in header
+            if re.match(r"^\d+\s+.+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?$", line)
+        ),
+        "",
+    )
+    if address_line:
+        metadata["Job Address"] = address_line
+
+    email_re = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
+    combined_customer = next(
+        (
+            email_re.sub("", line).strip()
+            for line in header
+            if email_re.search(line) and email_re.sub("", line).strip()
+        ),
+        "",
+    )
+    if combined_customer:
+        metadata["Customer"] = combined_customer
+    else:
+        permit_index = next(
+            (i for i, line in enumerate(header) if line.startswith("Permit Number:")),
+            -1,
+        )
+        if permit_index >= 3:
+            candidates = header[max(0, permit_index - 6) : permit_index]
+            customer = next(
+                (
+                    line
+                    for line in reversed(candidates)
+                    if line != address_line
+                    and not line.startswith(("Phone:", "Fax:"))
+                    and "@" not in line
+                    and not re.match(r"^[A-Za-z ]+,\s*[A-Z]{2}\s+\d{5}", line)
+                    and "Sewer Type:" not in line
+                    and not line.startswith(("Cosmopolitan Tile", "REVISED", "VENDOR"))
+                ),
+                "",
+            )
+            if customer:
+                metadata["Customer"] = customer
 
     return metadata
 
@@ -111,7 +150,7 @@ def item_type(description: str) -> str | None:
         return "Niche Tile"
     if value.startswith("SEALER"):
         return "Sealer"
-    if value.startswith("ADDITIONAL TILE") or value.startswith("TILE:"):
+    if value.startswith(("ADDITIONAL TILE", "TILE:")):
         return "Tile / Accessory"
     return None
 
@@ -169,7 +208,7 @@ def parse_order_rows(lines: list[str]) -> list[OrderRow]:
             continue
         if not started or raw_line == "Tile":
             continue
-        if raw_line.startswith("Included at Start"):
+        if raw_line.startswith("Included at Start") or raw_line == "Change Orders Approved":
             break
         if raw_line.startswith("Change Order #"):
             continuation_target = None

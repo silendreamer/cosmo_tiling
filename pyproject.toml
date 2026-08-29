@@ -5,6 +5,7 @@ description = "Convert Classica and Saussy tile-order PDFs into structured Excel
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.117.1",
+    "openai>=3.6.0",
     "openpyxl>=3.1.5",
     "pdfplumber>=0.11.7",
     "python-multipart>=0.0.20",

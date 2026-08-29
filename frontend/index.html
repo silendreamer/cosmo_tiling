@@ -45,7 +45,36 @@
       <div class="workspace">
         <div class="converter-column">
           <form class="converter-card" id="converter-form" novalidate>
-        <div class="form-section">
+        <div class="form-section order-type-section">
+          <div class="section-heading">
+            <div>
+              <h2>Order Type</h2>
+            </div>
+          </div>
+          <fieldset class="template-fieldset" aria-describedby="order-type-helper">
+            <p class="field-helper" id="order-type-helper">Choose whether this is a new order or a revision to an earlier order.</p>
+            <div class="template-options order-type-options">
+              <label class="template-option">
+                <input type="radio" name="order-type" value="new" checked>
+                <span class="radio-control" aria-hidden="true"></span>
+                <span>
+                  <strong>New order</strong>
+                  <small>Convert one vendor PDF</small>
+                </span>
+              </label>
+              <label class="template-option">
+                <input type="radio" name="order-type" value="corrected">
+                <span class="radio-control" aria-hidden="true"></span>
+                <span>
+                  <strong>Corrected order</strong>
+                  <small>Compare original and revised PDFs</small>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="form-section" id="new-order-section">
           <div class="section-heading">
             <div>
                 <h2>Upload PDF</h2>
@@ -91,6 +120,67 @@
           <p class="field-error" id="file-error" role="alert" hidden></p>
         </div>
 
+        <div class="form-section corrected-upload-section" id="corrected-order-section" hidden>
+          <div class="section-heading">
+            <div>
+              <h2>Upload both orders</h2>
+              <p class="field-helper">The original creates the baseline. The corrected PDF supplies the revisions.</p>
+            </div>
+          </div>
+          <div class="corrected-upload-grid">
+            <div class="corrected-upload-field">
+              <h3>1. Original order PDF</h3>
+              <label class="drop-zone compact-drop-zone" id="original-drop-zone">
+                <input id="original-pdf-file" name="original_pdf" type="file" accept="application/pdf,.pdf">
+                <span class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+                    <path d="M5 14.5v3A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-3" />
+                  </svg>
+                </span>
+                <span class="drop-title">Drop original PDF</span>
+                <span class="drop-helper">or <span class="browse-text">browse files</span></span>
+              </label>
+              <div class="file-card" id="original-file-card" hidden>
+                <span class="pdf-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M7 3.5h7l4 4V20.5H7z" /><path d="M14 3.5v4h4M9.5 13h5M9.5 16h3.5" /></svg>
+                </span>
+                <span class="file-details"><strong id="original-file-name"></strong><span id="original-file-size"></span></span>
+                <button class="remove-file" id="remove-original-file" type="button" aria-label="Remove original order PDF">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+              <p class="field-error" id="original-file-error" role="alert" hidden></p>
+            </div>
+
+            <div class="corrected-upload-field">
+              <h3>2. Corrected order PDF</h3>
+              <label class="drop-zone compact-drop-zone" id="corrected-drop-zone">
+                <input id="corrected-pdf-file" name="corrected_pdf" type="file" accept="application/pdf,.pdf">
+                <span class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+                    <path d="M5 14.5v3A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5v-3" />
+                  </svg>
+                </span>
+                <span class="drop-title">Drop corrected PDF</span>
+                <span class="drop-helper">or <span class="browse-text">browse files</span></span>
+              </label>
+              <div class="file-card" id="corrected-file-card" hidden>
+                <span class="pdf-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M7 3.5h7l4 4V20.5H7z" /><path d="M14 3.5v4h4M9.5 13h5M9.5 16h3.5" /></svg>
+                </span>
+                <span class="file-details"><strong id="corrected-file-name"></strong><span id="corrected-file-size"></span></span>
+                <button class="remove-file" id="remove-corrected-file" type="button" aria-label="Remove corrected order PDF">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+              <p class="field-error" id="corrected-file-error" role="alert" hidden></p>
+            </div>
+          </div>
+          <p class="field-helper combined-limit">PDF only · 4 MB per file · 4 MB combined for corrected orders</p>
+        </div>
+
         <div class="form-section options-section">
           <div class="section-heading" style="margin-bottom:0px">
             <div>
@@ -129,9 +219,22 @@
               </label>
             </div>
             <p class="field-error" id="template-error" role="alert" hidden></p>
+            <p class="field-helper correction-template-note" id="correction-template-note" hidden>Corrected orders currently support Classica. Saussy will be enabled after a real revised-order sample is validated.</p>
           </fieldset>
 
         </div>
+
+        <section class="form-section correction-review" id="correction-review" aria-labelledby="correction-review-title" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="review-kicker">REVIEW REQUIRED</p>
+              <h2 id="correction-review-title">Resolve uncertain changes</h2>
+              <p class="field-helper" id="correction-review-helper">Choose Apply or Ignore for every item. High-confidence changes will be applied automatically.</p>
+            </div>
+          </div>
+          <div class="review-list" id="review-list"></div>
+          <p class="field-error" id="review-error" role="alert" hidden></p>
+        </section>
 
         <div class="form-footer">
           <p>
@@ -139,7 +242,7 @@
               <path d="M10 17.5a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
               <path d="M10 8.5v4M10 6.2v.1" />
             </svg>
-            Your original PDF will not be modified.
+            Your uploaded PDFs will not be modified or archived.
           </p>
           <button class="convert-button" id="convert-button" type="submit" disabled>
             <span class="button-label">Convert to Excel</span>

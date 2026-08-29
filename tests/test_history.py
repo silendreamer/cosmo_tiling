@@ -59,6 +59,18 @@ class HistoryTests(unittest.TestCase):
 
         self.assertEqual(restored, [original])
 
+    def test_legacy_csv_defaults_to_new_order_metadata(self):
+        legacy = (
+            b"id,source_filename,output_filename,template,status,failure_reason,row_count,created_at_utc\n"
+            b"1,order.pdf,order.xlsx,classica,success,,3,2026-01-01T00:00:00Z\n"
+        )
+
+        restored = decode_records(legacy)
+
+        self.assertEqual(restored[0].order_type, "new")
+        self.assertEqual(restored[0].original_filename, "")
+        self.assertIsNone(restored[0].applied_change_count)
+
     def test_append_initializes_missing_csv_and_never_contains_file_bytes(self):
         gateway = FakeGateway()
         history = ConversionHistory(gateway)

@@ -8,6 +8,16 @@
     },
     "api/conversions.py": {
       "maxDuration": 30
+    },
+    "api/corrections.py": {
+      "maxDuration": 60,
+      "includeFiles": "src/cosmo_tiling/config/**"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/corrections/:path*",
+      "destination": "/api/corrections"
+    }
+  ]
 }
