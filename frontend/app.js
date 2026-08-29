@@ -216,7 +216,7 @@ function setBusy(isBusy) {
   updateConvertButtonState();
   buttonLabel.textContent = isBusy ? "Creating workbook…" : "Convert to Excel";
   templateInputs.forEach((input) => {
-    input.disabled = isBusy;
+    input.disabled = isBusy || input.dataset.comingSoon === "true";
   });
   removeFileButton.disabled = isBusy;
   convertButton.classList.toggle("is-loading", isBusy);

@@ -404,7 +404,7 @@ h1 {
 
 .template-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -423,6 +423,17 @@ h1 {
 
 .template-option:hover {
   border-color: #aab7c1;
+}
+
+.template-option:has(input:disabled) {
+  color: #6f767d;
+  background: #f7f8f8;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.template-option:has(input:disabled):hover {
+  border-color: var(--line);
 }
 
 .template-option:has(input:checked) {
@@ -474,6 +485,28 @@ h1 {
 .template-option strong,
 .template-option small {
   display: block;
+}
+
+.template-option-copy {
+  min-width: 0;
+}
+
+.template-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.template-status {
+  padding: 2px 5px;
+  color: var(--primary-ink);
+  background: #e4e9ec;
+  border-radius: 2px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .template-option strong {
