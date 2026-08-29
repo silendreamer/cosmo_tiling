@@ -154,6 +154,25 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(headers["x-if-match"], '"etag-1"')
         self.assertEqual(headers["x-vercel-blob-store-id"], "example123")
 
+    @patch("api._history.httpx.put")
+    def test_conditional_write_falls_back_to_explicit_overwrite(self, mock_put):
+        conflict = Mock(status_code=412)
+        success = Mock(status_code=200)
+        success.raise_for_status.return_value = None
+        mock_put.side_effect = [conflict, success]
+
+        gateway = VercelBlobGateway(
+            oidc_token="short-lived-token",
+            store_id="store_example123",
+        )
+        gateway.conditional_write(b"csv", '"etag-1"')
+
+        self.assertEqual(mock_put.call_count, 2)
+        fallback_headers = mock_put.call_args.kwargs["headers"]
+        self.assertNotIn("x-if-match", fallback_headers)
+        self.assertEqual(fallback_headers["x-allow-overwrite"], "1")
+        self.assertEqual(fallback_headers["x-api-blob-request-attempt"], "1")
+
 
 if __name__ == "__main__":
     unittest.main()

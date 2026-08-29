@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, Response
 from api._history import (
     ConversionHistory,
     ConversionRecord,
+    HistoryConflictError,
     new_conversion_record,
     safe_output_name,
     safe_source_name,
@@ -135,6 +136,8 @@ def _save_history(
         return True, ""
     except httpx.HTTPStatusError as error:
         return False, f"blob-http-{error.response.status_code}"
+    except HistoryConflictError:
+        return False, "blob-conflict"
     except RuntimeError:
         return False, "blob-configuration"
     except Exception as error:  # noqa: BLE001 - history outages must not block conversion

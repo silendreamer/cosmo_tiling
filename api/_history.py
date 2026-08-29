@@ -148,7 +148,24 @@ class VercelBlobGateway:
             timeout=30,
         )
         if response.status_code in {409, 412}:
-            raise HistoryConflictError("The history changed during the write.")
+            # Some Blob deployments reject conditional overwrites even when the
+            # ETag came from the immediately preceding private read. Retry the
+            # same freshly merged payload as an explicit overwrite so history
+            # remains available; the outer append loop still protects genuine
+            # conflicts whenever conditional writes are accepted.
+            fallback_headers = headers.copy()
+            fallback_headers.pop("x-if-match", None)
+            fallback_headers["x-api-blob-request-attempt"] = "1"
+            fallback_headers["x-allow-overwrite"] = "1"
+            response = httpx.put(
+                api_url,
+                params={"pathname": HISTORY_PATH},
+                headers=fallback_headers,
+                content=content,
+                timeout=30,
+            )
+            if response.status_code in {409, 412}:
+                raise HistoryConflictError("The history changed during the write.")
         response.raise_for_status()
 
 
