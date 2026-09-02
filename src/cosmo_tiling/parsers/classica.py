@@ -16,6 +16,7 @@ ROOM_RE = re.compile(
     r"LNDRY[A-Z0-9_/-]*|LAUNDRY[A-Z0-9_/-]*|"
     r"MUD[A-Z0-9_/-]*|POOL[A-Z0-9_/-]*|BAR[A-Z0-9_/-]*|"
     r"SCULLERY[A-Z0-9_/-]*|PANTRY[A-Z0-9_/-]*|"
+    r"GREAT[A-Z0-9_/-]*|"
     r"FOYER[A-Z0-9_/-]*|ENTRY[A-Z0-9_/-]*|PORCH[A-Z0-9_/-]*|PATIO[A-Z0-9_/-]*"
     r")(?:\s+(?P<description>.*))?$",
     re.IGNORECASE,
@@ -126,10 +127,14 @@ def item_type(description: str) -> str | None:
         return "Wall Tile"
     if value.startswith("BACKSPLASH / TILE"):
         return "Backsplash"
+    if value.startswith("BACKSPLASH / ADD A TILE BACK"):
+        return "Backsplash"
     if value.startswith("BACKSPLASH"):
         return "Backsplash Detail"
     if value.startswith("ACCENT"):
         return "Accent"
+    if value.startswith("SURROUND / TILE"):
+        return "Wall Tile"
     if value.startswith("GROUT COLOR"):
         return "Grout Color"
     if value.startswith("GROUT:"):
@@ -196,6 +201,7 @@ def parse_order_rows(lines: list[str]) -> list[OrderRow]:
     current_application: OrderRow | None = None
     continuation_target: OrderRow | None = None
     continuation_field = "description"
+    room_context = ""
 
     ignored_prefixes = (
         "ROOM CODE ", "BATH FIXTURES", "BATHROOM TYPE", "MATERIAL:", "MATERIAL A:",
@@ -222,6 +228,7 @@ def parse_order_rows(lines: list[str]) -> list[OrderRow]:
         if room_match:
             room = normalize_room(room_match.group("room"))
             body = (room_match.group("description") or "").strip()
+            room_context = body if body.upper().startswith("BATHROOM TYPE") else ""
             current_application = None
             continuation_target = None
             if not body:
@@ -271,6 +278,7 @@ def parse_order_rows(lines: list[str]) -> list[OrderRow]:
                 order_qty=quantity if kind not in {"Floor Tile", "Shower Floor", "Shower Wall", "Wall Tile", "Backsplash", "Accent"} else None,
                 unit=unit,
                 source_text=raw_line,
+                room_context=room_context,
             )
             rows.append(row)
             continuation_target = row
@@ -328,6 +336,10 @@ def concise_pattern(pattern: str) -> str:
 def reference_item_type(item_type_value: str, room: str) -> str:
     if item_type_value == "Shower Wall":
         return "Shower wall"
+    if item_type_value == "Wall Tile" and room == "GREAT":
+        return "Tile"
+    if item_type_value == "Backsplash" and room == "SCULLERY":
+        return "Tile"
     if item_type_value == "Backsplash":
         return "KBS Tile"
     if item_type_value == "Floor Tile" and room.startswith("LNDRY"):
@@ -393,11 +405,48 @@ def normalize_application(row: OrderRow, rules: dict) -> OrderRow:
         pattern=row.pattern,
         source_text=row.source_text,
         related_type=lookup_type,
+        room_context=row.room_context,
+    )
+
+
+def is_tub_room(raw_rows: list[OrderRow]) -> bool:
+    return any("TUB COMBINATION" in row.room_context.upper() for row in raw_rows)
+
+
+def is_stone_application(row: OrderRow) -> bool:
+    source = f"{row.description} {row.source_text}".upper()
+    return "STONE (DALTILE)" in source or "MARBLE" in source
+
+
+def caulk_from_grout(grout: OrderRow, room: str, related_type: str) -> OrderRow:
+    color = re.sub(r"^Prism\s+", "", grout.description, flags=re.IGNORECASE).strip()
+    return OrderRow(
+        room=room,
+        item_type="Caulk",
+        description=f"{color} Sanded",
+        order_qty=1,
+        unit="PCS",
+        source_text="Derived from tub grout color",
+        related_type=related_type,
+    )
+
+
+def stone_sealer(room: str, related_type: str, rules: dict) -> OrderRow:
+    sealer = rules.get("stone_sealer", {})
+    return OrderRow(
+        room=room,
+        item_type="Sealer",
+        description=sealer.get("description", "Sealer"),
+        order_qty=sealer.get("quantity", 1),
+        unit=sealer.get("unit", "QT"),
+        source_text="Derived from stone/marble selection",
+        related_type=related_type,
     )
 
 
 def transform_room(room: str, raw_rows: list[OrderRow], rules: dict) -> list[OrderRow]:
     result: list[OrderRow] = []
+    tub_room = is_tub_room(raw_rows)
 
     if rules.get("linear_drain", {}).get("room") == room:
         drain = rules["linear_drain"]
@@ -460,7 +509,16 @@ def transform_room(room: str, raw_rows: list[OrderRow], rules: dict) -> list[Ord
         if niche:
             result.append(normalize_niche(niche, room, rules))
         if grout_color:
-            result.append(normalize_grout(grout_color, room, application.related_type))
+            grout = normalize_grout(grout_color, room, application.related_type)
+            result.append(grout)
+            if (
+                tub_room
+                and rules.get("tub_caulk")
+                and application.related_type in {"Shower Wall", "Floor Tile"}
+            ):
+                result.append(caulk_from_grout(grout, room, application.related_type))
+            if rules.get("stone_sealer") and is_stone_application(block[0]):
+                result.append(stone_sealer(room, application.related_type, rules))
 
     caulk = rules.get("kitchen_caulk", {})
     if caulk.get("room") == room:
@@ -497,12 +555,19 @@ def apply_order_rules(rows: list[OrderRow], rules: dict) -> None:
         owner.order_components = components
         owner.waste_percent = group["waste_percent"]
         other_rooms = [row.room for row in members if row is not owner]
-        owner.comments = f"{' + '.join(str(value) for value in components)}; includes {', '.join(other_rooms)}"
-        for member in members:
-            grouped.add(row_locator(member))
-            if member is not owner:
+        owner.comments = group.get(
+            "owner_comments",
+            f"{' + '.join(str(value) for value in components)}; includes {', '.join(other_rooms)}",
+        )
+        grouped.add(row_locator(owner))
+        if group.get("suppress_members", True):
+            for member in members:
+                grouped.add(row_locator(member))
+                if member is owner:
+                    continue
                 member.order_qty = "-"
-                member.comments = f"Ordered with {owner.room}"
+                member.unit = "-"
+                member.comments = group.get("member_comments", f"Ordered with {owner.room}")
 
     for key, row in applications.items():
         if key in grouped:
@@ -544,6 +609,28 @@ def apply_order_rules(rows: list[OrderRow], rules: dict) -> None:
             row.order_qty = "-"
             row.unit = "-"
             row.comments = f"Included above ({owner.room})"
+
+    caulks: dict[str, list[OrderRow]] = {}
+    for row in rows:
+        if row.item_type == "Caulk":
+            caulks.setdefault(f"{row.room}|{row.description}", []).append(row)
+    for matching_rows in caulks.values():
+        for row in matching_rows[1:]:
+            row.order_qty = "-"
+            row.unit = "-"
+            row.comments = "Incl abv"
+
+    for row in rows:
+        key = f"{row.room}|{row.related_type or row.item_type}|{row.item_type}"
+        override = rules.get("row_overrides", {}).get(key)
+        if not override:
+            continue
+        for field in (
+            "description", "order_qty", "unit", "comments", "pattern",
+            "order_formula_override",
+        ):
+            if field in override:
+                setattr(row, field, override[field])
 
 
 def build_reference_rows(raw_rows: list[OrderRow], rules: dict) -> tuple[list[OrderRow], dict[str, str]]:

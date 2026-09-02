@@ -103,6 +103,105 @@
         "description": "Bleached Wood (545) sanded",
         "quantity": 1
       }
+    },
+    {
+      "project_match": "Lakeside Drive II 3",
+      "room_order": [
+        "BTHF_BR2",
+        "BTHF_BR3",
+        "BTHF_BR4S",
+        "BTHF_PRIM",
+        "GREAT",
+        "LNDRY1",
+        "SCULLERY"
+      ],
+      "display_names": {
+        "GREAT": "Great Room Fireplace",
+        "SCULLERY": "Scullery Backsplash"
+      },
+      "measurements": {
+        "BTHF_BR2|Shower Wall": 81,
+        "BTHF_BR2|Floor Tile": 37,
+        "BTHF_BR3|Shower Wall": 108,
+        "BTHF_BR3|Shower Floor": 14,
+        "BTHF_BR3|Floor Tile": 48,
+        "BTHF_BR4S|Shower Wall": 108,
+        "BTHF_BR4S|Shower Floor": 14,
+        "BTHF_BR4S|Floor Tile": 60,
+        "BTHF_PRIM|Shower Wall": 153,
+        "BTHF_PRIM|Shower Floor": 18,
+        "BTHF_PRIM|Floor Tile": 160,
+        "GREAT|Wall Tile": 143,
+        "LNDRY1|Floor Tile": 78,
+        "SCULLERY|Backsplash": 13
+      },
+      "order_groups": [
+        {
+          "owner": "BTHF_BR2|Shower Wall",
+          "members": [
+            "BTHF_BR2|Shower Wall",
+            "BTHF_BR3|Shower Wall",
+            "BTHF_BR4S|Shower Wall"
+          ],
+          "waste_percent": 22,
+          "owner_comments": "=81+108+108",
+          "member_comments": "108 sf Incl abv"
+        },
+        {
+          "owner": "BTHF_BR2|Floor Tile",
+          "members": [
+            "BTHF_BR2|Floor Tile",
+            "BTHF_BR3|Floor Tile",
+            "BTHF_BR4S|Floor Tile"
+          ],
+          "waste_percent": 12,
+          "owner_comments": "=37+48+60",
+          "member_comments": "Incl abv"
+        },
+        {
+          "owner": "BTHF_BR3|Shower Floor",
+          "members": ["BTHF_BR3|Shower Floor", "BTHF_BR4S|Shower Floor"],
+          "waste_percent": 22,
+          "owner_comments": "=14+14",
+          "suppress_members": false
+        }
+      ],
+      "waste_percent": {
+        "BTHF_PRIM|Shower Wall": 22,
+        "BTHF_PRIM|Shower Floor": 10,
+        "BTHF_PRIM|Floor Tile": 12,
+        "GREAT|Wall Tile": 22,
+        "LNDRY1|Floor Tile": 12,
+        "SCULLERY|Backsplash": 20
+      },
+      "grout_orders": {
+        "Prism Ash (642)": {"owner": "BTHF_BR2", "quantity": 1}
+      },
+      "add_drain_riser_to": ["BTHF_PRIM"],
+      "tub_caulk": true,
+      "stone_sealer": {
+        "description": "Sealer",
+        "quantity": 1,
+        "unit": "QT"
+      },
+      "row_overrides": {
+        "BTHF_BR2|Shower Wall|Schluter": {"order_qty": 4, "unit": "PCS"},
+        "BTHF_BR2|Floor Tile|Schluter": {"order_qty": "-", "unit": "-", "comments": "30\" Ordered above"},
+        "BTHF_BR3|Shower Wall|Schluter": {"order_qty": 6, "unit": "PCS"},
+        "BTHF_BR3|Floor Tile|Schluter": {"order_qty": "-", "unit": "-", "comments": "2@ 30\" Ordered above"},
+        "BTHF_BR4S|Shower Wall|Schluter": {"order_qty": 6, "unit": "PCS"},
+        "BTHF_BR4S|Floor Tile|Schluter": {"order_qty": "-", "unit": "-", "comments": "3@30\" Ordered above"},
+        "BTHF_PRIM|Shower Wall|Schluter": {"order_qty": 7, "unit": "PCS"},
+        "BTHF_PRIM|Floor Tile|Schluter": {"order_qty": "-", "unit": "-", "comments": "2@30\", 1@ 32\""},
+        "GREAT|Wall Tile|Schluter": {"order_qty": 4, "unit": "PCS"},
+        "LNDRY1|Floor Tile|Schluter": {"order_qty": 1, "unit": "PCS"},
+        "SCULLERY|Backsplash|Tile": {"pattern": "Stacked Horizontal (up to 24\" length): Parallel to Cabinet"},
+        "BTHF_BR2|Shower Wall|Grout": {
+          "order_formula_override": "=ROUND((362+162+34+17+187+20+179+87)/150,0)",
+          "unit": "PCS",
+          "comments": ""
+        }
+      }
     }
   ]
 }

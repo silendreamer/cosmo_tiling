@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+
 @dataclass
 class OrderRow:
     room: str
@@ -19,6 +20,7 @@ class OrderRow:
     order_components: tuple[float, ...] = ()
     order_formula_override: str = ""
     related_type: str = ""
+    room_context: str = ""
 
 
 def clean_text(value: str) -> str:

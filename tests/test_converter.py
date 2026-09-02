@@ -1,6 +1,6 @@
+import re
 import tempfile
 import unittest
-import re
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -19,10 +19,10 @@ from convert_tile_order import (
     resolve_template_rules,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE = ROOT / "pdf" / "classica" / "VendorOrder_PalosVerdeEstates7.pdf"
 PALISADES = ROOT / "pdf" / "classica" / "VendorOrder_ThePalisades3Homearama.pdf"
+LAKESIDE = ROOT / "pdf" / "qa-corrections" / "VendorOrder_LakesideDriveII3.pdf"
 TEMPLATE = ROOT / "src" / "cosmo_tiling" / "config" / "templates" / "classica-template.json"
 SAUSSY_TEMPLATE = ROOT / "src" / "cosmo_tiling" / "config" / "templates" / "saussy-template.json"
 SAUSSY_PDFS = [
@@ -180,6 +180,94 @@ class ConverterTests(unittest.TestCase):
         )
         self.assertEqual(standard.size_area, '12"x12"')
         self.assertEqual(double.size_area, '28"x12"')
+
+    def test_lakeside_qa_corrections_are_applied(self):
+        lines, _ = extract_pdf_lines(LAKESIDE)
+        metadata = parse_metadata(lines)
+        raw_rows = parse_order_rows(lines)
+
+        self.assertEqual(
+            list(dict.fromkeys(row.room for row in raw_rows)),
+            [
+                "BTHF_BR2", "BTHF_BR3", "BTHF_BR4S", "BTHF_PRIM",
+                "GREAT", "KITCHEN", "LNDRY1", "SCULLERY",
+            ],
+        )
+        raw_primary_wall = next(
+            row for row in raw_rows
+            if row.room == "BTHF_PRIM" and row.item_type == "Shower Wall"
+        )
+        self.assertIn("COSTAR", raw_primary_wall.description)
+        self.assertNotIn("MYTHIQUE", raw_primary_wall.source_text)
+
+        rows, display_names = build_reference_rows(
+            raw_rows, load_template_rules(metadata, TEMPLATE)
+        )
+        self.assertEqual(
+            list(dict.fromkeys(row.room for row in rows)),
+            [
+                "BTHF_BR2", "BTHF_BR3", "BTHF_BR4S", "BTHF_PRIM",
+                "GREAT", "LNDRY1", "SCULLERY",
+            ],
+        )
+        self.assertEqual(display_names["GREAT"], "Great Room Fireplace")
+        self.assertEqual(display_names["SCULLERY"], "Scullery Backsplash")
+
+        tub_caulk = [
+            row for row in rows
+            if row.room == "BTHF_BR2" and row.item_type == "Caulk"
+        ]
+        self.assertEqual(len(tub_caulk), 2)
+        self.assertEqual(tub_caulk[0].description, "Ash (642) Sanded")
+        self.assertEqual((tub_caulk[0].order_qty, tub_caulk[0].unit), (1, "PCS"))
+        self.assertEqual((tub_caulk[1].order_qty, tub_caulk[1].unit), ("-", "-"))
+
+        sealer_rooms = [row.room for row in rows if row.item_type == "Sealer"]
+        self.assertEqual(sealer_rooms, ["BTHF_BR3", "BTHF_BR4S", "GREAT", "SCULLERY"])
+        self.assertTrue(
+            all((row.order_qty, row.unit) == (1, "QT") for row in rows if row.item_type == "Sealer")
+        )
+
+        grouped_wall = next(
+            row for row in rows
+            if row.room == "BTHF_BR2" and row.item_type == "Shower wall"
+        )
+        self.assertEqual(grouped_wall.order_components, (81, 108, 108))
+        self.assertEqual(grouped_wall.waste_percent, 22)
+        self.assertEqual(grouped_wall.comments, "=81+108+108")
+
+        primary_wall = next(
+            row for row in rows
+            if row.room == "BTHF_PRIM" and row.item_type == "Shower wall"
+        )
+        self.assertEqual(
+            (primary_wall.size_area, primary_wall.description),
+            ("12x24", "COSTAR, Oyster, CT74"),
+        )
+        self.assertEqual((primary_wall.measured_qty, primary_wall.waste_percent), (153, 22))
+        self.assertTrue(
+            any(row.room == "BTHF_PRIM" and row.item_type == "Drain riser plug" for row in rows)
+        )
+
+        fireplace = next(
+            row for row in rows if row.room == "GREAT" and row.item_type == "Tile"
+        )
+        self.assertEqual(fireplace.description, "MYTHIQUE MARBLE, Majestic, Polished, MY12")
+        self.assertEqual((fireplace.measured_qty, fireplace.waste_percent), (143, 22))
+        fireplace_schluter = next(
+            row for row in rows if row.room == "GREAT" and row.item_type == "Schluter"
+        )
+        self.assertEqual((fireplace_schluter.description, fireplace_schluter.order_qty), ("J100-PG (classic grey)", 4))
+
+        scullery = next(
+            row for row in rows if row.room == "SCULLERY" and row.item_type == "Tile"
+        )
+        self.assertEqual(scullery.description, "SUBLIMITY, Daphne White, Balance Mosaic, M103")
+        self.assertEqual((scullery.measured_qty, scullery.waste_percent), (13, 20))
+        self.assertEqual(
+            scullery.pattern,
+            'Stacked Horizontal (up to 24" length): Parallel to Cabinet',
+        )
 
     def test_classica_template_selects_matching_project_rules(self):
         rules = load_template_rules(self.metadata, TEMPLATE)
