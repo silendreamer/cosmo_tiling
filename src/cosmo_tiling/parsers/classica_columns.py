@@ -208,6 +208,16 @@ NOTE_RE = re.compile(
     r"center from\b|main back wall\b|on wall with\b|to ceiling\b|bleached wood\?)",
     re.IGNORECASE,
 )
+APPLICATION_SUMMARY_RE = re.compile(
+    r"^(?P<product>.+?)\s*-\s*GROUT\s*:\s*(?P<grout>.+?)\s+AND\s+SCHLUTER\s*:\s*(?P<schluter>.+?)\s*$",
+    re.IGNORECASE,
+)
+
+
+def application_summary(text):
+    """Read compact product/grout/trim summaries emitted by some orders."""
+    match = APPLICATION_SUMMARY_RE.match(text)
+    return match.groupdict() if match else None
 
 
 def group_applications(raw_rows, application_aliases=None, label_aliases=None):
@@ -220,7 +230,7 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
         item = (text, row["qty"])
         accessory_context = sections and sections[-1]["heading"] and field(
             sections[-1]["heading"][0], label_aliases)[0] in {"niche", "corner_shelf"}
-        is_note = not row["qty"] and (NOTE_RE.match(text) or (
+        is_note = not row["qty"] and (NOTE_RE.match(text) or application_summary(text) or (
             accessory_context and not application_kind(text, application_aliases)))
         if row.get("layout", {}).get("is_heading") and not is_note:
             sections.append({"heading": item, "children": []})
@@ -234,12 +244,26 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
         heading = section["heading"]
         children = section["children"]
         selections = [item for item in children if field(item[0], label_aliases)[0] == "selection"]
+        summaries = [(item, application_summary(item[0])) for item in children]
+        summaries = [(item, summary) for item, summary in summaries if summary]
         canonical = application_kind(heading[0], application_aliases) if heading else None
         thin_brick = heading and canonical == "surround" and re.search(r"\bthin\s*brick\b", heading[0], re.I)
         if thin_brick:
             details = "; ".join(text for text, _ in children if re.match(r"(?:COLOR|PAINT)\s*:", text, re.I))
             selections = [("AREA A SELECTION: Thin Brick" + ("; " + details if details else ""), heading[1])]
         if canonical and selections:
+            # Some PDFs replace product detail with a compact heading and leave
+            # only "Tile (...) Group 2" in AREA A SELECTION. Recover only the
+            # values stated by that summary; absent size/profile details stay blank.
+            if len(summaries) == 1:
+                summary = summaries[0][1]
+                selections = [
+                    ("AREA A SELECTION: " + summary["product"], qty)
+                    if re.fullmatch(r"(?:Tile|Stone)\s*\([^)]*\)\s*Group\s+[^:]+",
+                                    field(text, label_aliases)[1], re.I)
+                    else (text, qty)
+                    for text, qty in selections
+                ]
             block = {"type": heading[0], "kind": canonical, "selections": selections, "accessories": [],
                      "stone": any(re.search(r"(?:SELECTION|MATERIAL)\s*:\s*Stone\b", text, re.I)
                                   for text, _ in children)}
@@ -254,6 +278,13 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
         section_drain = None
         for text, qty in ([heading] if heading else []) + children:
             category, value = field(text, label_aliases)
+            summary = application_summary(text)
+            if summary and block:
+                block["accessories"].extend([
+                    ("GROUT COLOR: " + summary["grout"], ""),
+                    ("SCHLUTER: " + summary["schluter"], ""),
+                ])
+                continue
             if category in {"drain_shape", "drain_finish"}:
                 key = "shape" if category == "drain_shape" else "finish"
                 if section_drain is None or key in section_drain:

@@ -11,6 +11,23 @@ def row(text, heading=False, qty="1 EA"):
 
 
 class ApplicationDetectionTests(unittest.TestCase):
+    def test_compact_application_summary_supplies_stated_product_and_accessories(self):
+        rows = table_rows([
+            row("Floor Tile", True, "32 SF"),
+            row("FLORENTINE CARRERA - GROUT: Bright White AND SCHLUTER: MBW", True, ""),
+            row("PATTERN: Offset", False, "32 SF"),
+            row("MATERIAL A: Tile (DalTile)", False, "32 SF"),
+            row("AREA A SELECTION: Tile (DalTile) Group 2", False, "40 SF"),
+        ])
+        self.assertEqual(
+            [(item[0], item[1], item[2], item[4]) for item in rows],
+            [
+                ("Floor Tile", "", "FLORENTINE CARRERA", "SF"),
+                ("Schluter", "", "MBW", ""),
+                ("Grout", "", "Bright White", ""),
+            ],
+        )
+
     def test_multiple_drains_preserved(self):
         rows = table_rows([
             row("Shower Drain : Square"), row("Shower Drain Finish : Gold [A]"),
