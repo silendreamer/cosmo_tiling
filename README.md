@@ -23,16 +23,19 @@ uv run python convert_tile_order.py pdf/classica/VendorOrder_PalosVerdeEstates7.
 The generated file is written to `output/<pdf-name>-TileOrder.xlsx`.
 
 The formatted `Tile Order` sheet includes the project summary, colored room
-sections, formula-driven order quantities, comments, and complete pattern
+sections, order quantities where available, comments, and complete pattern
 wording. The `Data` sheet retains measured quantities, room codes, and source
 PDF text for auditing.
 
-The selected JSON template identifies the PDF format and contains default and
-project-specific business rules. These handle adjusted field measurements,
-waste percentages, consolidated orders, Schluter quantities, and derived
-accessories that are not stated directly in the PDF. The bundled Classica
-template is `src/cosmo_tiling/config/templates/classica-template.json` and is used by default when
-`--template` is omitted.
+Classica uploads use the deterministic parser used by
+`scripts/extract_classica_room.py`. Room codes and applications come from the PDF;
+the template contains optional wording aliases, with no project matching.
+Drain riser plugs follow every shower drain (1 EA), and the shared caulk, sealer,
+niche, and accessory rules apply. Other quantities remain blank. The `Source`
+sheet preserves extracted columns, and unresolved instructions appear in
+`Change Review`. The app flags content requiring review.
+The bundled template is `src/cosmo_tiling/config/templates/classica-template.json`
+and is used by default when `--template` is omitted.
 
 The Saussy template is `src/cosmo_tiling/config/templates/saussy-template.json`. It contains only the
 reusable format settings used to parse the Tile section of any Saussy
@@ -62,8 +65,10 @@ troubleshooting.
 - `convert_tile_order.py` is a backward-compatible command-line launcher.
 - `src/cosmo_tiling/converter.py` handles template loading, conversion
   orchestration, workbook generation, validation, and CLI behavior.
-- `src/cosmo_tiling/parsers/classica.py` contains Classica metadata parsing, PDF row parsing,
-  normalization, and order-rule application.
+- `src/cosmo_tiling/parsers/classica_columns.py` contains the shared Classica
+  column extraction and row rules; `classica_app.py` adapts them to app workbooks.
+- `src/cosmo_tiling/parsers/classica_changes.py` handles supported PDF change instructions.
+- `src/cosmo_tiling/parsers/classica.py` retains metadata parsing and legacy helpers.
 - `src/cosmo_tiling/parsers/saussy.py` contains Saussy metadata and Tile-section parsing,
   including the project-neutral fallback parser.
 - `src/cosmo_tiling/parsers/common.py` contains the shared `OrderRow` model and text cleanup.
@@ -76,27 +81,16 @@ function in `api/convert.py`. The function converts the PDF in temporary
 storage and returns the generated workbook directly to the browser. The
 download keeps the PDF filename and changes its extension to `.xlsx`.
 
-The **Corrected order** flow accepts an original and revised Classica PDF. It
-analyzes deterministic selection differences, requests review for uncertain
-prose instructions, and returns a single `-Corrected.xlsx` workbook with a
-`Revision Report` audit sheet. Each PDF may be up to 4 MB, while the pair must
-be 4 MB or smaller in total. Corrected Saussy orders remain disabled until a
-real original/revised fixture is available. See
-[`docs/corrected-order-workflow.md`](docs/corrected-order-workflow.md) for the
-behavior and acceptance contract.
+Corrected Classica PDFs use the same single-file upload. Because the corrected
+PDF contains the original selections and its correction instructions, the
+converter applies supported instructions from that PDF directly and records
+unresolved instructions in the workbook for review.
 
 Shared conversion metadata is exposed by `api/conversions.py` and stored in a
 private Vercel Blob object at `history/conversions.csv`. Only filenames,
 order/template type, status, failure reason, row/change/warning counts, ID, and timestamp are retained;
 uploaded PDFs and generated workbooks are never written to Blob. The newest
 50 records are loaded initially and older records can be requested in pages.
-
-Optional correction-prose interpretation uses the OpenAI Responses API. Set
-`OPENAI_API_KEY` on the server and optionally override the default model with
-`OPENAI_CORRECTION_MODEL` (default `gpt-5.6-terra`). Only redacted correction
-snippets and candidate rows are sent; raw PDFs are not sent. If the key or API
-is unavailable, deterministic analysis continues and unmatched instructions
-are sent to user review.
 
 Install the project and Vercel CLI, then preview the complete app locally with:
 

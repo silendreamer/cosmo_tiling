@@ -24,6 +24,7 @@ SAMPLE = ROOT / "pdf" / "classica" / "VendorOrder_PalosVerdeEstates7.pdf"
 PALISADES = ROOT / "pdf" / "classica" / "VendorOrder_ThePalisades3Homearama.pdf"
 LAKESIDE = ROOT / "pdf" / "qa-corrections" / "VendorOrder_LakesideDriveII3.pdf"
 TEMPLATE = ROOT / "src" / "cosmo_tiling" / "config" / "templates" / "classica-template.json"
+LEGACY_TEMPLATE = ROOT / "tests" / "fixtures" / "classica-legacy-template.json"
 SAUSSY_TEMPLATE = ROOT / "src" / "cosmo_tiling" / "config" / "templates" / "saussy-template.json"
 SAUSSY_PDFS = [
     ROOT / "pdf" / "saussy" / "Eastland 104 Modern Luxe DSS 12.15.2025.pdf",
@@ -39,7 +40,7 @@ class ConverterTests(unittest.TestCase):
         cls.metadata = parse_metadata(lines)
         cls.rows = parse_order_rows(lines)
         cls.order_rows, _ = build_reference_rows(
-            cls.rows, load_template_rules(cls.metadata, TEMPLATE)
+            cls.rows, load_template_rules(cls.metadata, LEGACY_TEMPLATE)
         )
 
     def test_sample_rooms_are_dynamic_and_tile_only(self):
@@ -102,11 +103,11 @@ class ConverterTests(unittest.TestCase):
             rows = convert(SAMPLE, output, template_path=TEMPLATE)
             workbook = load_workbook(output, read_only=True, data_only=False)
             try:
-                self.assertEqual(workbook.sheetnames, ["Tile Order", "Data"])
+                self.assertEqual(workbook.sheetnames, ["Tile Order", "Data", "Source"])
                 self.assertEqual(workbook["Data"].max_row - 1, len(rows))
                 self.assertEqual(workbook["Tile Order"].max_column, 7)
                 self.assertEqual(
-                    [workbook["Tile Order"].cell(14, column).value for column in range(1, 8)],
+                    next([cell.value for cell in row] for row in workbook["Tile Order"].iter_rows() if row[0].value == "Type"),
                     [
                         "Type", "Size / Area", "Description", "Order Qty",
                         "Unit", "Comments", "Pattern",
@@ -120,9 +121,8 @@ class ConverterTests(unittest.TestCase):
                     if row[0].value == "Shower wall"
                     and row[2].value == "CONRAD BRICK, Siren, CB95"
                 )
-                self.assertIsInstance(owner_wall[3].value, str)
-                self.assertTrue(owner_wall[3].value.startswith("=ROUND((235)"))
-                self.assertIsNone(re.search(r"\b[A-Z]{1,3}\d+\b", owner_wall[3].value))
+                self.assertIsNone(owner_wall[3].value)
+                self.assertTrue(all(row.waste_percent is None for row in rows))
             finally:
                 workbook.close()
 
@@ -166,7 +166,7 @@ class ConverterTests(unittest.TestCase):
         lines, _ = extract_pdf_lines(PALISADES)
         metadata = parse_metadata(lines)
         rows, _ = build_reference_rows(
-            parse_order_rows(lines), load_template_rules(metadata, TEMPLATE)
+            parse_order_rows(lines), load_template_rules(metadata, LEGACY_TEMPLATE)
         )
         standard = next(
             row
@@ -201,7 +201,7 @@ class ConverterTests(unittest.TestCase):
         self.assertNotIn("MYTHIQUE", raw_primary_wall.source_text)
 
         rows, display_names = build_reference_rows(
-            raw_rows, load_template_rules(metadata, TEMPLATE)
+            raw_rows, load_template_rules(metadata, LEGACY_TEMPLATE)
         )
         self.assertEqual(
             list(dict.fromkeys(row.room for row in rows)),
@@ -269,14 +269,14 @@ class ConverterTests(unittest.TestCase):
             'Stacked Horizontal (up to 24" length): Parallel to Cabinet',
         )
 
-    def test_classica_template_selects_matching_project_rules(self):
-        rules = load_template_rules(self.metadata, TEMPLATE)
+    def test_archived_classica_template_selects_matching_project_rules(self):
+        rules = load_template_rules(self.metadata, LEGACY_TEMPLATE)
         self.assertEqual(rules["measurements"]["BTHF_OWN|Shower Wall"], 235)
         self.assertEqual(rules["waste_percent"]["BTHF_OWN|Shower Wall"], 10)
 
         palisades_lines, _ = extract_pdf_lines(PALISADES)
         palisades_rules = load_template_rules(
-            parse_metadata(palisades_lines), TEMPLATE
+            parse_metadata(palisades_lines), LEGACY_TEMPLATE
         )
         self.assertEqual(palisades_rules, {})
 

@@ -123,6 +123,7 @@ def create_workbook_response(
             "Cache-Control": "no-store",
             "Content-Disposition": _content_disposition(output_name),
             "X-Order-Row-Count": str(len(rows)),
+            "X-Warning-Count": str(sum(getattr(row, "item_type", "") in {"Unclassified (review)", "Review required"} for row in rows)),
         },
     )
 
@@ -197,6 +198,7 @@ async def convert_pdf(
         template=template,
         status="success",
         row_count=row_count,
+        warning_count=int(response.headers.get("x-warning-count", "0")),
     )
     saved, history_error = _save_history(record, oidc_token)
     response.headers["X-Conversion-Id"] = record.id

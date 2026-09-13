@@ -17,6 +17,7 @@ from cosmo_tiling.parsers.classica import (
     parse_order_rows,
 )
 from cosmo_tiling.parsers.saussy import build_saussy_rows, parse_saussy_metadata
+from cosmo_tiling.parsers.classica_app import build_classica_document, append_source_sheets, REVIEW_TYPES
 
 import pdfplumber
 from openpyxl import Workbook, load_workbook
@@ -76,6 +77,11 @@ def load_template(template_path: Path | str = DEFAULT_TEMPLATE) -> dict:
         raise ValueError(f"Template defaults must be an object: {path}")
     if not isinstance(template.get("projects", []), list):
         raise ValueError(f"Template projects must be an array: {path}")
+    for key in ("application_aliases", "label_aliases"):
+        values = template.get(key, {})
+        if not isinstance(values, dict) or any(not isinstance(k, str) or not isinstance(v, str)
+                                                for k, v in values.items()):
+            raise ValueError(f"Template {key} must map labels to categories: {path}")
 
     reference_rules = template.get("reference_rules")
     if reference_rules:
@@ -269,11 +275,11 @@ def convert(
     template = load_template(template_path)
     if template["parser"] == "classica":
         metadata = parse_metadata(lines)
-        raw_rows = parse_order_rows(lines)
-        if not raw_rows:
-            raise ValueError("No tile-related order rows were found in the PDF")
-        rules = resolve_template_rules(template, metadata)
-        rows, display_names = build_reference_rows(raw_rows, rules)
+        rows, document = build_classica_document(pdf_path, template)
+        display_names = {}
+        review_count = sum(row.item_type in REVIEW_TYPES for row in rows)
+        if review_count:
+            metadata["Review required"] = f"{review_count} rows or instructions; see marked rows and source sheets"
     elif template["parser"] == "saussy":
         metadata = parse_saussy_metadata(lines)
         rules = resolve_template_rules(template, metadata)
@@ -288,6 +294,8 @@ def convert(
         template.get("workbook_title", "TILE ORDER"),
         template.get("header_title", "Tile Order"),
     )
+    if template["parser"] == "classica":
+        append_source_sheets(output_path, document)
     validate_workbook(output_path, len(rows))
     if debug_text:
         output_path.with_suffix(".extracted.txt").write_text(extracted_text, encoding="utf-8")
