@@ -5,11 +5,11 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from cosmo_tiling.converter import load_template
-from cosmo_tiling.parsers.classica_app import (
+from cosmo_tiling.parsers.classica.app import (
     append_source_sheets,
     build_classica_document,
 )
-from cosmo_tiling.parsers.classica_columns import table_rows
+from cosmo_tiling.parsers.classica.columns import table_rows
 
 ROOT = Path(__file__).resolve().parents[1]
 PDF = ROOT / "pdf/classica/VendorOrder_PalosVerdeEstates7.pdf"

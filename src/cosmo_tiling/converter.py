@@ -19,15 +19,15 @@ from cosmo_tiling.parsers.classica import (  # noqa: F401 - launcher compatibili
     parse_metadata,
     parse_order_rows,
 )
-from cosmo_tiling.parsers.classica_app import (
+from cosmo_tiling.parsers.classica.app import (
     append_source_sheets,
     build_classica_document,
 )
-from cosmo_tiling.parsers.classica_rules import (
+from cosmo_tiling.parsers.classica.rules import (
     load_classica_rules,
     validate_classica_rules,
 )
-from cosmo_tiling.parsers.classica_rules import (
+from cosmo_tiling.parsers.classica.rules import (
     merge_rules as merge_classica_rule_values,
 )
 from cosmo_tiling.parsers.common import OrderRow, clean_text

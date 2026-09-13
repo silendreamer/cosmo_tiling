@@ -5,7 +5,7 @@ in the report for review. Existing source rows are retained for auditing.
 """
 import re
 
-from .classica_rules import rules_for
+from .rules import rules_for
 
 
 def read_changes(text, rules=None):

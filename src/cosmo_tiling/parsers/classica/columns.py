@@ -12,9 +12,9 @@ from pathlib import Path
 import pdfplumber
 
 if __package__:
-    from .classica_rules import merge_rules, rules_for
+    from .rules import merge_rules, rules_for
 else:
-    from classica_rules import merge_rules, rules_for
+    from rules import merge_rules, rules_for
 
 
 def quantity_pattern(rules):
@@ -124,9 +124,9 @@ def extract(path, target=None, apply_revisions=True, rules=None):
 
 def finish_extraction(pdf, rooms, records, target, apply_revisions=True, rules=None):
     if __package__:
-        from .classica_changes import apply_changes, read_changes
+        from .changes import apply_changes, read_changes
     else:
-        from classica_changes import apply_changes, read_changes
+        from changes import apply_changes, read_changes
     rules = rules_for(rules)
     instructions = read_changes("\n".join(page.extract_text() or "" for page in pdf.pages), rules)
     report = apply_changes(records, instructions, rules) if apply_revisions else []

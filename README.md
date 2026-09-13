@@ -68,10 +68,10 @@ troubleshooting.
 - `convert_tile_order.py` is a backward-compatible command-line launcher.
 - `src/cosmo_tiling/converter.py` handles template loading, conversion
   orchestration, workbook generation, validation, and CLI behavior.
-- `src/cosmo_tiling/parsers/classica_columns.py` contains the shared Classica
-  column extraction and row rules; `classica_app.py` adapts them to app workbooks.
-- `src/cosmo_tiling/parsers/classica_changes.py` handles supported PDF change instructions.
-- `src/cosmo_tiling/parsers/classica.py` retains metadata parsing and legacy helpers.
+- `src/cosmo_tiling/parsers/classica/columns.py` contains the shared Classica
+  column extraction and row rules; `app.py` adapts them to app workbooks.
+- `src/cosmo_tiling/parsers/classica/changes.py` handles supported PDF change instructions.
+- `src/cosmo_tiling/parsers/classica/__init__.py` retains metadata parsing and legacy helpers.
 - `src/cosmo_tiling/parsers/saussy.py` contains Saussy metadata and Tile-section parsing,
   including the project-neutral fallback parser.
 - `src/cosmo_tiling/parsers/common.py` contains the shared `OrderRow` model and text cleanup.

@@ -9,7 +9,7 @@ from pathlib import Path
 from string import Formatter
 
 DEFAULT_RULES_PATH = (
-    Path(__file__).resolve().parents[1] / "config" / "rules" / "classica-rules.json"
+    Path(__file__).resolve().parents[2] / "config" / "rules" / "classica-rules.json"
 )
 
 

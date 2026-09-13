@@ -1,7 +1,7 @@
 """Adapt the shared Classica column parser to app workbook rows."""
 from collections import OrderedDict
 
-from .classica_columns import (
+from .columns import (
     application_kind,
     extract,
     field,
@@ -9,8 +9,8 @@ from .classica_columns import (
     product_fields,
     structured_rows,
 )
-from .classica_rules import rules_for
-from .common import OrderRow
+from .rules import rules_for
+from ..common import OrderRow
 
 
 def build_classica_document(path, template, *, apply_revisions=True):

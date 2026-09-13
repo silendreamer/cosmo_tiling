@@ -5,8 +5,8 @@ from copy import deepcopy
 from pathlib import Path
 
 from cosmo_tiling.converter import load_template
-from cosmo_tiling.parsers.classica_columns import structured_rows
-from cosmo_tiling.parsers.classica_rules import rules_for, validate_classica_rules
+from cosmo_tiling.parsers.classica.columns import structured_rows
+from cosmo_tiling.parsers.classica.rules import rules_for, validate_classica_rules
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "src/cosmo_tiling/config/templates/classica-template.json"

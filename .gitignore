@@ -5,3 +5,5 @@ output/
 pdf/
 xlsx/
 *.lock
+orginals/
+docs/
