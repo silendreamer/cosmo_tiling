@@ -29,11 +29,14 @@ PDF text for auditing.
 
 Classica uploads use the deterministic parser used by
 `scripts/extract_classica_room.py`. Room codes and applications come from the PDF;
-the template contains optional wording aliases, with no project matching.
+the template references editable, project-independent Classica rules in
+`src/cosmo_tiling/config/rules/classica-rules.json`.
 Drain riser plugs follow every shower drain (1 EA), and the shared caulk, sealer,
-niche, and accessory rules apply. Other quantities remain blank. The `Source`
-sheet preserves extracted columns, and unresolved instructions appear in
-`Change Review`. The app flags content requiring review.
+niche, and accessory rules apply. Unambiguous tile applications use the PDF
+heading quantity and configured waste rules to create literal formulas such as
+`=ROUND(93*(1+10/100),0)`. Each calculated row has a `Review -` comment. The
+`Source` sheet preserves extracted columns, and unresolved instructions appear
+in `Change Review`. The app flags content requiring review.
 The bundled template is `src/cosmo_tiling/config/templates/classica-template.json`
 and is used by default when `--template` is omitted.
 

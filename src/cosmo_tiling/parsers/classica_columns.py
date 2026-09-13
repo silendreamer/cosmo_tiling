@@ -6,12 +6,20 @@ Prints all room codes, selected-room JSON, and a five-column table.
 
 import argparse
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pdfplumber
 
-QTY_RE = re.compile(r"\d+(?:[.,]\d+)?\s+(?:SF|EA|LF|PC|PCS|BOX|BOXES|BXS|QT|GAL|ROLLS?)", re.I)
+if __package__:
+    from .classica_rules import merge_rules, rules_for
+else:
+    from classica_rules import merge_rules, rules_for
+
+
+def quantity_pattern(rules):
+    units = "|".join(re.escape(unit) for unit in rules["units"]["accepted"])
+    return re.compile(rf"\d+(?:[.,]\d+)?\s+(?:{units})", re.I)
 
 
 def visual_lines(words):
@@ -28,7 +36,9 @@ def joined(words):
     return " ".join(word["text"] for word in words)
 
 
-def extract(path, target=None, apply_revisions=True):
+def extract(path, target=None, apply_revisions=True, rules=None):
+    rules = rules_for(rules)
+    qty_re = quantity_pattern(rules)
     rooms = []
     records = []
     room = None
@@ -52,8 +62,10 @@ def extract(path, target=None, apply_revisions=True):
                     continue
                 if not active:
                     continue
-                if text.startswith(("Included at Start", "Change Orders", "Change Order #")):
-                    return finish_extraction(pdf, rooms, records, target, apply_revisions)
+                extraction_stops = [*rules["change_orders"]["stop_headings"],
+                                    *rules["change_orders"]["approved_headings"], "Change Order #"]
+                if any(text.casefold().startswith(value.casefold()) for value in extraction_stops):
+                    return finish_extraction(pdf, rooms, records, target, apply_revisions, rules)
                 if re.match(r"\d{1,2}/\d{1,2}/\d{4}\s+Lot\b", text):
                     continue
 
@@ -70,7 +82,7 @@ def extract(path, target=None, apply_revisions=True):
                           if description_words else None)
                 heading = indent is not None and abs(indent) <= 4
                 qty = joined([w for w in line if w["x0"] >= qty_x])
-                if qty and not QTY_RE.fullmatch(qty):
+                if qty and not qty_re.fullmatch(qty):
                     description = " ".join(part for part in (description, qty) if part)
                     qty = ""
                 # Wrapped heading text keeps its indentation. Tight line spacing
@@ -107,16 +119,17 @@ def extract(path, target=None, apply_revisions=True):
                                                "is_heading": heading}})
         if bounds is None:
             raise ValueError("Classica Room Code / Type / Changed / Qty header not found")
-        return finish_extraction(pdf, rooms, records, target, apply_revisions)
+        return finish_extraction(pdf, rooms, records, target, apply_revisions, rules)
 
 
-def finish_extraction(pdf, rooms, records, target, apply_revisions=True):
+def finish_extraction(pdf, rooms, records, target, apply_revisions=True, rules=None):
     if __package__:
         from .classica_changes import apply_changes, read_changes
     else:
         from classica_changes import apply_changes, read_changes
-    instructions = read_changes("\n".join(page.extract_text() or "" for page in pdf.pages))
-    report = apply_changes(records, instructions) if apply_revisions else []
+    rules = rules_for(rules)
+    instructions = read_changes("\n".join(page.extract_text() or "" for page in pdf.pages), rules)
+    report = apply_changes(records, instructions, rules) if apply_revisions else []
     output = result(rooms, records, target)
     output["change_report"] = report
     return output
@@ -131,60 +144,52 @@ def result(rooms, records, target):
 NUMBER = r'(?:\d+\s+\d+/[1-9]\d*|\d+/[1-9]\d*|\d+(?:\.\d+)?|\d*[\u00bc\u00bd\u00be])'
 SIZE_RE = re.compile(
     rf'(?<![\w./]){NUMBER}\s*["\u2033\u201c\u201d\ufffd]?\s*[xX\u00d7]\s*{NUMBER}(?:\s*["\u2033\u201c\u201d\ufffd])?(?![\w./])')
-SELECTION_RE = re.compile(r"(?:AREA\s+\w+\s+SELECTION|FLOORING SELECTION)\s*:", re.IGNORECASE)
-# Recognition rules only: all product values still come from the PDF.
-APPLICATION_ALIASES = {
-    "backsplash": "backsplash", "scullery backsplash": "backsplash",
-    "floor tile": "floor", "pavers": "pavers",
-    "shower floor tile": "shower_floor", "shower floor": "shower_floor",
-    "shower wall": "shower_wall", "shower walls": "shower_wall",
-    "shower wall tile": "shower_wall", "shower wall tiles": "shower_wall",
-    "surround": "surround", "wall tile": "wall",
-    "main back wall": "shower_wall_area", "side walls": "shower_wall_area",
-    "bench top": "shower_wall_area", "side walls & front of bench": "shower_wall_area",
-    "accent": "accent", "niche tile": "accent",
-}
-LABEL_ALIASES = {
-    "shower drain": "drain_shape", "shower drain finish": "drain_finish",
-    "grout color": "grout_color", "grout colour": "grout_color",
-    "grout": "context", "pattern": "context", "flooring material": "context",
-    "tile option (inside of niche)": "niche_reference",
-}
-
-
 def normalized(text):
     return " ".join(text.split()).casefold()
 
 
-def application_kind(text, aliases=None):
-    return (aliases if aliases is not None else APPLICATION_ALIASES).get(
+# Backward-compatible views; values are loaded from the editable rules file.
+APPLICATION_ALIASES = rules_for()["applications"]["aliases"]
+LABEL_ALIASES = rules_for()["fields"]["aliases"]
+
+
+def application_kind(text, rules=None):
+    rules = rules_for(rules)
+    return rules["applications"]["aliases"].get(
         normalized(re.split(r"\s*/\s*", text, maxsplit=1)[0]))
 
 
-def field(text, aliases=None):
+def field(text, rules=None):
     """Normalize labels, preserving the spelling of their values."""
-    if SELECTION_RE.match(text):
-        return "selection", SELECTION_RE.sub("", text, count=1).strip()
+    rules = rules_for(rules)
+    for pattern in rules["fields"]["selection_patterns"]:
+        match = re.match(pattern, text, re.I)
+        if match:
+            return "selection", text[match.end():].strip()
     label, separator, value = text.partition(":")
     key = normalized(label)
     value = value.lstrip(": ")
     if separator:
-        kind = (aliases if aliases is not None else LABEL_ALIASES).get(key)
+        kind = rules["fields"]["aliases"].get(key)
         if kind:
             return kind, value
-        if re.fullmatch(r"material(?:\s+\w+)?", key):
+        if any(key == prefix or key.startswith(prefix + " ")
+               for prefix in rules["fields"]["material_prefixes"]):
             return "context", value
-        if re.match(r"schluter\b", key):
+        if any(key.startswith(prefix) for prefix in rules["fields"]["schluter_prefixes"]):
             # Remove an optional applicability qualifier, not product colons.
             value = re.sub(r"^\([^)]*\)\s*:\s*", "", value)
             return "schluter", value
-    if re.match(r"wall\s+niche\s*/", text, re.IGNORECASE):
+    value_normalized = normalized(text)
+    if any(value_normalized.startswith(prefix) for prefix in rules["fields"]["niche_prefixes"]):
         return "niche", text
-    if re.match(r"corner\s*shelf\s*/", text, re.IGNORECASE):
+    if any(value_normalized.startswith(prefix) for prefix in rules["fields"]["corner_shelf_prefixes"]):
         return "corner_shelf", text
-    if re.match(r"(?:sealer|grout release)(?:\s*[:/]|$)", text, re.I):
+    if any(value_normalized == prefix or value_normalized.startswith(prefix + ":")
+           or value_normalized.startswith(prefix + " /")
+           for prefix in rules["fields"]["supply_prefixes"]):
         return "supply", text
-    if re.match(r"(?:bath\s+fixtures|bathroom\s+type)\s*/", text, re.IGNORECASE):
+    if any(value_normalized.startswith(prefix) for prefix in rules["fields"]["context_prefixes"]):
         return "context", text
     return "unknown", text
 
@@ -201,29 +206,24 @@ def size_match(text):
                 and re.search(r"\bmosaic\b", text[matches[1].end():], re.I)):
             return match
     return None
-# Unquantified instructions may share the application's indentation. Recognize
-# those explicitly; an unfamiliar heading must still break the previous block.
-NOTE_RE = re.compile(
-    r"^(?:\*|see\b|install\b|lay\b|align\b|orient\b|alternate\b|change\b|confirm\b|confrim\b|"
-    r"stacked\b|vertical\b|running\b|herringbone\b|perpendicular\b|"
-    r"tile direction:|selection:|color story:|\d+ rows\b|"
-    r"center from\b|main back wall\b|on wall with\b|to ceiling\b|bleached wood\?)",
-    re.IGNORECASE,
-)
-APPLICATION_SUMMARY_RE = re.compile(
-    r"^(?P<product>.+?)\s*-\s*GROUT\s*:\s*(?P<grout>.+?)\s+AND\s+SCHLUTER\s*:\s*(?P<schluter>.+?)\s*$",
-    re.IGNORECASE,
-)
-
-
-def application_summary(text):
+def application_summary(text, rules=None):
     """Read compact product/grout/trim summaries emitted by some orders."""
-    match = APPLICATION_SUMMARY_RE.match(text)
+    rules = rules_for(rules)
+    match = re.match(rules["recognition"]["compact_summary_pattern"], text, re.I)
     return match.groupdict() if match else None
 
 
-def group_applications(raw_rows, application_aliases=None, label_aliases=None):
+def is_note(text, rules):
+    value = normalized(text)
+    return re.match(r"\d+ rows\b", value) or any(
+        value.startswith(prefix.casefold())
+        for prefix in rules["recognition"]["note_prefixes"]
+    )
+
+
+def group_applications(raw_rows, rules=None):
     """Recognize application headings; isolate unknown headings for review."""
+    rules = rules_for(rules)
     sections = []
     for row in raw_rows:
         if row.get("excluded_by_change"):
@@ -231,12 +231,12 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
         text = " ".join(row["type_description"].split())
         item = (text, row["qty"])
         accessory_context = sections and sections[-1]["heading"] and field(
-            sections[-1]["heading"][0], label_aliases)[0] in {"niche", "corner_shelf"}
-        is_note = not row["qty"] and ((NOTE_RE.match(text)
-                                      and not application_kind(text, application_aliases))
-                                     or application_summary(text) or (
-            accessory_context and not application_kind(text, application_aliases)))
-        if row.get("layout", {}).get("is_heading") and not is_note:
+            sections[-1]["heading"][0], rules)[0] in {"niche", "corner_shelf"}
+        note = not row["qty"] and ((is_note(text, rules)
+                                      and not application_kind(text, rules))
+                                     or application_summary(text, rules) or (
+            accessory_context and not application_kind(text, rules)))
+        if row.get("layout", {}).get("is_heading") and not note:
             sections.append({"heading": item, "children": []})
         elif sections:
             sections[-1]["children"].append(item)
@@ -247,13 +247,15 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
     for section in sections:
         heading = section["heading"]
         children = section["children"]
-        selections = [item for item in children if field(item[0], label_aliases)[0] == "selection"]
-        summaries = [(item, application_summary(item[0])) for item in children]
+        selections = [item for item in children if field(item[0], rules)[0] == "selection"]
+        summaries = [(item, application_summary(item[0], rules)) for item in children]
         summaries = [(item, summary) for item, summary in summaries if summary]
-        canonical = application_kind(heading[0], application_aliases) if heading else None
-        thin_brick = heading and canonical == "surround" and re.search(r"\bthin\s*brick\b", heading[0], re.I)
+        canonical = application_kind(heading[0], rules) if heading else None
+        thin_brick = heading and canonical == "surround" and re.search(
+            rules["recognition"]["thin_brick_pattern"], heading[0], re.I)
         if thin_brick:
-            details = "; ".join(text for text, _ in children if re.match(r"(?:COLOR|PAINT)\s*:", text, re.I))
+            details = "; ".join(text for text, _ in children if re.match(
+                rules["recognition"]["thin_brick_detail_pattern"], text, re.I))
             selections = [("AREA A SELECTION: Thin Brick" + ("; " + details if details else ""), heading[1])]
         if canonical and selections:
             # Some PDFs replace product detail with a compact heading and leave
@@ -263,26 +265,30 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
                 summary = summaries[0][1]
                 selections = [
                     ("AREA A SELECTION: " + summary["product"], qty)
-                    if re.fullmatch(r"(?:Tile|Stone)\s*\([^)]*\)\s*Group\s+[^:]+",
-                                    field(text, label_aliases)[1], re.I)
+                    if re.fullmatch(rules["recognition"]["generic_product_pattern"],
+                                    field(text, rules)[1], re.I)
                     else (text, qty)
                     for text, qty in selections
                 ]
-            block = {"type": heading[0], "kind": canonical, "selections": selections, "accessories": [],
-                     "stone": any(re.search(r"(?:SELECTION|MATERIAL)\s*:\s*Stone\b", text, re.I)
+            pattern = next((text.split(":", 1)[1].strip() for text, _ in children
+                            if normalized(text).startswith("pattern:")), "")
+            block = {"type": heading[0], "kind": canonical, "heading_qty": heading[1],
+                     "pattern": pattern,
+                     "selections": selections, "accessories": [],
+                     "stone": any(re.search(rules["recognition"]["stone_material_pattern"], text, re.I)
                                   for text, _ in children)}
             blocks.append(block)
         else:
             block = None
-        if heading and field(heading[0], label_aliases)[0] == "corner_shelf":
+        if heading and field(heading[0], rules)[0] == "corner_shelf":
             details = [text for text, _ in children if re.search(r"\bshelf\b", text, re.I)]
             shelves.append(("Corner Shelf / " + " / ".join(details or [heading[0]]), heading[1]))
             unclassified.extend((text, qty) for text, qty in children if text not in details)
             continue
         section_drain = None
         for text, qty in ([heading] if heading else []) + children:
-            category, value = field(text, label_aliases)
-            summary = application_summary(text)
+            category, value = field(text, rules)
+            summary = application_summary(text, rules)
             if summary and block:
                 block["accessories"].extend([
                     ("GROUT COLOR: " + summary["grout"], ""),
@@ -295,11 +301,12 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
                     section_drain = {}
                     drains.append(section_drain)
                 section_drain[key] = value
-                section_drain["unit"] = qty.split()[-1] if qty else ""
+                if qty:
+                    section_drain["qty"] = qty
             elif category == "niche":
                 reference = next((re.sub(r"^same\s+as\s+", "", value, flags=re.IGNORECASE)
                                   for child, _ in children
-                                  for kind, value in [field(child, label_aliases)]
+                                  for kind, value in [field(child, rules)]
                                   if kind == "niche_reference" and re.match(r"same\s+as\s+", value, re.IGNORECASE)), None)
                 niches.append((text, qty, reference))
             elif category in {"schluter", "grout_color"} and block:
@@ -324,8 +331,8 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
             matches = matches[-1:]
         if len(matches) == 1:
             matches[0]["accessories"].append((text, qty))
-            interior = [b for b in blocks if reference and application_kind(reference, application_aliases)
-                        and b.get("kind") == application_kind(reference, application_aliases)]
+            interior = [b for b in blocks if reference and application_kind(reference, rules)
+                        and b.get("kind") == application_kind(reference, rules)]
             if len(interior) == 1 and interior[0] is not matches[0]:
                 matches[0].setdefault("accents", []).extend(interior[0]["selections"])
         else:
@@ -342,9 +349,10 @@ def item_is_heading(text, heading):
     return heading is not None and text == heading[0]
 
 
-def product_fields(text, label_aliases=None):
-    description = field(text, label_aliases)[1]
-    description = re.sub(r"^(?:Tile|Stone)\s*\([^)]*\)\s*Group\s+[^:]+:\s*",
+def product_fields(text, rules=None):
+    rules = rules_for(rules)
+    description = field(text, rules)[1]
+    description = re.sub(rules["recognition"]["product_group_prefix_pattern"],
                          "", description, flags=re.I)
     size = size_match(description)
     if size:
@@ -355,80 +363,188 @@ def product_fields(text, label_aliases=None):
     return size.group().strip() if size else "", description
 
 
-def table_rows(raw_rows, application_aliases=None, label_aliases=None):
-    """Render source values plus the approved caulk and drain-riser rules."""
-    blocks, drains, unclassified = group_applications(raw_rows, application_aliases, label_aliases)
-    tub_room = any(re.match(r"Bathroom Type\s*/\s*(?:Shower\s*/\s*Tub\s+Combination|"
-                           r"Tub\s+Combination|Tub\s*(?:and|&|/)\s*Shower(?:\s+Combination)?|"
-                           r"Shower\s*(?:and|&)\s*Tub(?:\s+Combination)?)\s*$",
-                           " ".join(row["type_description"].split()), re.IGNORECASE)
-                   for row in raw_rows)
+def parse_quantity(value, rules):
+    if not value:
+        return None, ""
+    match = quantity_pattern(rules).fullmatch(value.strip())
+    if not match:
+        return None, ""
+    number, unit = value.rsplit(maxsplit=1)
+    number = float(number.replace(",", "."))
+    if number.is_integer():
+        number = int(number)
+    unit = rules["units"]["normalize"].get(unit.upper(), unit.upper())
+    return number, unit
 
+
+def _dimension(value):
+    value = value.strip().replace("¼", " 1/4").replace("½", " 1/2").replace("¾", " 3/4")
+    if not value:
+        return None
+    pieces = re.split(r"[xX×]", value)
+    dimensions = []
+    for piece in pieces[:2]:
+        values = re.findall(r"\d+(?:\.\d+)?(?:/\d+)?", piece)
+        total = 0.0
+        for item in values:
+            if "/" in item:
+                numerator, denominator = item.split("/", 1)
+                total += float(numerator) / float(denominator)
+            else:
+                total += float(item)
+        if values:
+            dimensions.append(total)
+    return max(dimensions) if len(dimensions) == 2 else None
+
+
+def waste_percent(size, pattern, description, application, rules):
+    haystack = normalized(" ".join((pattern, description)))
+    dimension = _dimension(size)
+    for rule in rules["quantity"]["waste_rules"]:
+        if rule.get("applications") and application not in rule["applications"]:
+            continue
+        if rule.get("any_keywords") and not any(
+                keyword.casefold() in haystack for keyword in rule["any_keywords"]):
+            continue
+        if rule.get("all_keyword_groups") and not all(
+                any(keyword.casefold() in haystack for keyword in group)
+                for group in rule["all_keyword_groups"]):
+            continue
+        if rule.get("min_dimension") is not None and (
+                dimension is None or dimension < rule["min_dimension"]):
+            continue
+        return rule["percent"]
+    raise ValueError("Classica quantity rules did not provide a default waste rule")
+
+
+def _format_number(value):
+    return str(int(value)) if isinstance(value, float) and value.is_integer() else str(value)
+
+
+def structured_rows(raw_rows, rules=None):
+    """Return configured Classica rows with quantities and audit metadata."""
+    rules = rules_for(rules)
+    blocks, drains, unclassified = group_applications(raw_rows, rules)
+    recognition = rules["recognition"]
+    tub_room = any(
+        normalized(row["type_description"]).startswith("bathroom type /")
+        and any(phrase.casefold() in normalized(row["type_description"])
+                for phrase in recognition["tub_room_phrases"])
+        for row in raw_rows
+    )
+    display = rules["accessories"]["display"]
+    purchasable = set(rules["accessories"]["purchasable_categories"])
     output = []
 
-    def add(kind, size, description, qty):
-        unit = qty.split()[-1] if qty else ""
-        output.append([kind, size, description, "", unit])
+    def add(kind, size, description, source_qty="", *, category="", application="",
+            measured=None, waste=None, comments="", pattern="", source="", unit_override=""):
+        quantity, unit = parse_quantity(source_qty, rules)
+        unit = unit_override or unit
+        if category not in purchasable:
+            quantity = None
+        if category in rules["accessories"]["selection_only_categories"]:
+            unit = ""
+        formula = ""
+        if measured is not None and waste is not None:
+            formula = rules["quantity"]["formula_template"].format(
+                measured=_format_number(measured), waste=_format_number(waste))
+            comments = rules["quantity"]["review_comment_template"].format(
+                measured=_format_number(measured), waste=_format_number(waste), unit=unit or "SF")
+            quantity = formula
+            unit = unit or "SF"
+        output.append({"type": kind, "size": size, "description": description,
+                       "quantity": quantity if quantity is not None else "", "unit": unit,
+                       "measured_qty": measured, "waste_percent": waste,
+                       "formula": formula, "comments": comments, "pattern": pattern,
+                       "application": application, "source": source})
 
     for drain in drains:
         finish = drain.get("finish", "")
         code = re.search(r"\[[^]]+\]", finish)
         finish = re.sub(r"\s*\[[^]]+\]", "", finish).strip()
-        add("Shower Drain", code.group() if code else "",
+        add(display["drain"], code.group() if code else "",
             "- ".join(value for value in (drain.get("shape", ""), finish) if value),
-            drain.get("unit", ""))
-        # Explicit accessory rule: one riser plug for each shower drain.
-        output.append(["Drain riser plug", "", "Drain riser plug", 1, "EA"])
+            drain.get("qty", ""), category="drain")
+        riser = rules["accessories"]["drain_riser"]
+        if riser.get("enabled"):
+            output.append({"type": riser["type"], "size": "", "description": riser["description"],
+                           "quantity": riser["quantity"], "unit": riser["unit"],
+                           "measured_qty": None, "waste_percent": None, "formula": "",
+                           "comments": "", "pattern": "", "application": "", "source": ""})
 
-    # Presentation preferences only; these never determine detection/membership.
-    priority = {"shower_wall": 0, "shower_wall_area": 0, "shower_floor": 1, "floor": 2}
-    for block in sorted(blocks, key=lambda b: priority.get(b.get("kind"), 3)):
-        application = block.get("kind")
-        caulk_required = (
-            application == "backsplash"
-            or (tub_room and application in {"shower_wall", "floor"})
-        )
-        for text, qty in block["selections"]:
-            size, description = product_fields(text, label_aliases)
-            add(block["type"], size, description, qty)
-        # Accessories remain attached to their application, including when a
-        # block contains multiple material selections. Do not duplicate them.
+    presentation = rules["applications"]["presentation"]
+    for block in sorted(blocks, key=lambda item: presentation.get(
+            item.get("kind"), {"priority": 999})["priority"]):
+        application = block.get("kind", "")
+        caulk = rules["accessories"]["caulk"]
+        caulk_required = application in caulk["applications"] or (
+            tub_room and application in caulk["tub_applications"])
+        pattern = block.get("pattern", "")
+        heading_qty, heading_unit = parse_quantity(block.get("heading_qty", ""), rules)
+        unique_measurement = len(block["selections"]) == 1 and heading_qty is not None and heading_unit == "SF"
+        for text, source_qty in block["selections"]:
+            size, description = product_fields(text, rules)
+            if unique_measurement:
+                waste = waste_percent(size, pattern, description, application, rules)
+                add(block["type"], size, description, source_qty, application=application,
+                    measured=heading_qty, waste=waste, pattern=pattern, source=text)
+            else:
+                add(block["type"], size, description, source_qty, application=application,
+                    comments=rules["quantity"]["ambiguous_comment"], pattern=pattern, source=text)
+
         accessories = []
-        for text, qty in block["accessories"]:
-            category, value = field(text, label_aliases)
+        accessory_order = rules["accessories"]["order"]
+        for text, source_qty in block["accessories"]:
+            category, value = field(text, rules)
             if category == "schluter":
-                description = value
-                accessories.append((0, "Schluter", "", description, qty))
+                accessories.append((accessory_order["schluter"], display["schluter"], "", value, source_qty, "schluter"))
             elif category == "niche":
                 size = size_match(text)
                 dimensions = size.group().strip() if size else ""
                 dimensions = re.sub('[\u201c\u201d\ufffd\u2033]', '"', dimensions)
-                accessories.append((1, "Schluter niche", dimensions,
-                                    "Schluter niche", qty))
+                accessories.append((accessory_order["niche"], display["niche"], dimensions,
+                                    display["niche"], source_qty, "niche"))
             elif category == "corner_shelf":
                 code = re.search(r"\[[^]]+\]", value)
                 description = re.sub(r"^Corner Shelf\s*/\s*", "", value, flags=re.I)
                 description = re.sub(r"\[[^]]+\]", "", description).strip()
-                accessories.append((1, "Corner Shelf", code.group() if code else "", description, qty))
+                accessories.append((accessory_order["corner_shelf"], display["corner_shelf"], code.group() if code else "",
+                                    description, source_qty, "corner_shelf"))
             elif category == "supply":
-                kind = "Sealer" if re.match(r"sealer\b", text, re.I) else "Grout Release"
-                accessories.append((3, kind, "", value, qty))
+                supply = "sealer" if normalized(text).startswith("sealer") else "grout_release"
+                accessories.append((accessory_order[supply], display[supply], "", value, source_qty, supply))
             else:
-                accessories.append((2, "Grout", "", value, qty))
-        for text, qty in block.get("accents", []):
-            size, description = product_fields(text, label_aliases)
-            accessories.append((1.5, "Accent", size, description, qty))
-        if block.get("stone") and not any(a[1] == "Sealer" for a in accessories):
-            # Approved reusable rule for explicitly identified stone, not names
-            # such as "marble" that can describe porcelain lookalikes.
-            accessories.append((3, "Sealer", "", "Sealer", ""))
-        for _, kind, size, description, qty in sorted(accessories, key=lambda a: a[0]):
-            add(kind, size, description, qty)
-            if kind == "Grout" and caulk_required and description.strip():
-                output.append(["Caulk", "", f"{description.strip()} sanded", "", "PCS"])
-    for text, qty in unclassified:
-        add("Unclassified (review)", "", text, qty)
+                accessories.append((accessory_order["grout"], display["grout"], "", value, source_qty, "grout"))
+        for text, source_qty in block.get("accents", []):
+            size, description = product_fields(text, rules)
+            accessories.append((accessory_order["accent"], presentation["accent"]["display"], size,
+                                description, source_qty, "accent"))
+        sealer = rules["accessories"]["sealer"]
+        if block.get("stone") and not any(item[5] == "sealer" for item in accessories):
+            accessories.append((accessory_order["sealer"], sealer["type"], "", sealer["description"], "", "sealer"))
+        for _, kind, size, description, source_qty, category in sorted(accessories, key=lambda item: item[0]):
+            add(kind, size, description, source_qty, category=category, application=application,
+                source=description)
+            if category == "grout" and caulk_required and description.strip():
+                add(display["caulk"], "", description.strip() + caulk["description_suffix"],
+                    "", category="caulk", application=application, unit_override=caulk["unit"])
+    review = rules["review"]
+    for text, source_qty in unclassified:
+        add(review["unclassified_type"], "", text, source_qty,
+            comments=review["required_comment"], source=text)
     return output
+
+
+def table_rows(raw_rows, rules=None, label_aliases=None):
+    """Render the shared five-column Classica table."""
+    # Backward compatibility for the former table_rows(rows, applications, labels) API.
+    if rules is not None and "schema_version" not in rules:
+        overrides = {"applications": {"aliases": rules}}
+        if label_aliases is not None:
+            overrides["fields"] = {"aliases": label_aliases}
+        rules = merge_rules(rules_for(), overrides)
+    return [[row["type"], row["size"], row["description"], row["quantity"], row["unit"]]
+            for row in structured_rows(raw_rows, rules)]
 
 
 def print_table(rows):
@@ -452,24 +568,26 @@ def main():
                         help="Optional JSON with application_aliases and label_aliases mappings")
     args = parser.parse_args()
     try:
-        applications, labels = dict(APPLICATION_ALIASES), dict(LABEL_ALIASES)
+        rules = rules_for()
         if args.aliases:
             config = json.loads(args.aliases.read_text(encoding="utf-8"))
             if not isinstance(config, dict) or set(config) - {"application_aliases", "label_aliases"}:
                 raise ValueError("Aliases must contain application_aliases and/or label_aliases")
-            for key, destination in [("application_aliases", applications), ("label_aliases", labels)]:
+            overrides = {}
+            for key, destination in [("application_aliases", ("applications", "aliases")),
+                                     ("label_aliases", ("fields", "aliases"))]:
                 additions = config.get(key, {})
                 if not isinstance(additions, dict) or any(
                         not isinstance(k, str) or not k.strip() or not isinstance(v, str) or not v.strip()
                         for k, v in additions.items()):
                     raise ValueError(f"{key} must map nonempty labels to nonempty category names")
-                if key == "label_aliases" and set(additions.values()) - {
-                        "selection", "drain_shape", "drain_finish", "grout_color", "schluter",
-                        "niche_reference", "context"}:
+                if key == "label_aliases" and set(additions.values()) - set(rules["fields"]["categories"]):
                     raise ValueError("Unsupported label_aliases category")
-                destination.update({normalized(k): v for k, v in additions.items()})
-        output = extract(args.pdf, args.room)
-        rendered = table_rows(output["rows"], applications, labels)
+                overrides.setdefault(destination[0], {})[destination[1]] = {
+                    normalized(k): v for k, v in additions.items()}
+            rules = merge_rules(rules, overrides)
+        output = extract(args.pdf, args.room, rules=rules)
+        rendered = table_rows(output["rows"], rules)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"Error: {exc}\n")
     print(json.dumps(output, indent=2, ensure_ascii=True))

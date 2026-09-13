@@ -6,7 +6,8 @@ from openpyxl import load_workbook
 
 from cosmo_tiling.converter import load_template
 from cosmo_tiling.parsers.classica_app import (
-    REVIEW_TYPES, append_source_sheets, build_classica_document,
+    append_source_sheets,
+    build_classica_document,
 )
 from cosmo_tiling.parsers.classica_columns import table_rows
 
@@ -33,8 +34,11 @@ class ClassicaAppTests(unittest.TestCase):
                 plug = rows[index + 1]
                 self.assertEqual((plug.room, plug.item_type, plug.order_qty, plug.unit),
                                  (row.room, "Drain riser plug", 1, "EA"))
-            elif row.item_type != "Drain riser plug":
-                self.assertIsNone(row.order_qty)
+            elif row.order_formula_override:
+                self.assertEqual(row.order_qty, row.order_formula_override)
+                self.assertRegex(row.order_formula_override, r"^=ROUND\(\d+(?:\.\d+)?\*\(1\+\d+/100\),0\)$")
+                self.assertNotRegex(row.order_formula_override, r"\b[A-Z]{1,3}\d+\b")
+                self.assertTrue(row.comments.startswith("Review - "))
         self.assertGreater(drains, 0)
         self.assertNotIn("projects", load_template(TEMPLATE))
 

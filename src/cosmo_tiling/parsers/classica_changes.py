@@ -5,8 +5,12 @@ in the report for review. Existing source rows are retained for auditing.
 """
 import re
 
+from .classica_rules import rules_for
 
-def read_changes(text):
+
+def read_changes(text, rules=None):
+    rules = rules_for(rules)
+    config = rules["change_orders"]
     instructions = []
     active = False
     found_changes = False
@@ -14,7 +18,8 @@ def read_changes(text):
     current = None
     for line in text.splitlines():
         line = line.strip()
-        if re.match(r"Change Orders\s+Approved", line, re.I):
+        if any(line.casefold().startswith(value.casefold())
+               for value in config["approved_headings"]):
             active = True
             found_changes = True
             continue
@@ -24,7 +29,7 @@ def read_changes(text):
             number = int(order[1])
             current = None
             continue
-        if line.startswith(("Included at Start", "Related Items from other Vendors")):
+        if any(line.casefold().startswith(value.casefold()) for value in config["stop_headings"]):
             active = False
             current = None
             continue
@@ -38,9 +43,9 @@ def read_changes(text):
             instructions.append(current)
         elif current and line:
             current["text"] += " " + line
-    tile_instructions = [entry for entry in instructions if re.match(
-        r"(?:Tile\b|Tile Floor\b|Floor Tile\b|Backsplash\b|Shower Wall\b|Wall Niche\b|Shower Drain\b|Fireplace Surround\b)",
-        entry["text"], re.I)]
+    tile_instructions = [entry for entry in instructions if any(
+        entry["text"].casefold().startswith(prefix.casefold())
+        for prefix in config["instruction_prefixes"])]
     return sorted(tile_instructions, key=lambda entry: entry["order"])
 
 
@@ -48,94 +53,42 @@ def tokens(text):
     return set(re.findall(r"[a-z0-9]+", text.casefold()))
 
 
-def scope_matches(scope, room, heading):
+def scope_matches(scope, room, heading, rules=None):
+    rules = rules_for(rules)
     # Explicit room codes are the strongest available scope.
     if re.search(r"(?<!\w)" + re.escape(room) + r"(?!\w)", scope, re.I):
         return True
-    bedroom = re.search(r"(?:bedroom|bed)\s*#?\s*(\d+)\b", scope, re.I)
-    if bedroom:
-        return bool(re.search(r"_BR" + bedroom[1] + r"S?$", room, re.I))
-    if re.search(r"\b(?:primary|owner'?s)\b", scope, re.I):
-        return bool(re.search(r"_(?:PRIM|OWN)(?:/|$)", room, re.I))
-    if re.search(r"\bbasement\b", scope, re.I):
-        return bool(re.search(r"_BASE$", room, re.I))
-    if re.search(r"\bfireplace\b", scope, re.I):
-        return bool(re.match(r"Surround\s*/", heading, re.I))
-    if re.search(r"\bkitchen\b", scope, re.I):
-        return room.upper().startswith("KITCHEN")
+    for configured in rules["change_orders"]["scope_patterns"]:
+        match = re.search(configured["scope_pattern"], scope, re.I)
+        if not match:
+            continue
+        target = room if configured["target"] == "room" else heading
+        target_pattern = configured["target_pattern"].format(*match.groups())
+        return bool(re.search(target_pattern, target, re.I))
     return False
 
 
-def split_wall_selection(instruction):
-    """Extract explicitly labeled wall-area selections from change-order prose."""
-    text = " ".join(instruction.split())
-    main = re.search(
-        r"(?:^|\s+-\s+)MAIN BACK WALL\s*[:\-]\s*(.+?)(?=\s+-\s+SIDE WALLS\s*[:\-])",
-        text, re.I,
-    )
-    side = re.search(
-        r"\s+-\s+SIDE WALLS\s*[:\-]\s*(.+?)(?=\s+-\s+Grout Color for All Walls\s*:)",
-        text, re.I,
-    )
-    grout = re.search(
-        r"\s+-\s+Grout Color for All Walls\s*:\s*(.+?)(?=\s+-\s+Schluter Trim Color for All Walls\s*:)",
-        text, re.I,
-    )
-    schluter = re.search(
-        r"\s+-\s+Schluter Trim Color for All Walls\s*:\s*(.+?)(?=\s+NOTE:|$)",
-        text, re.I,
-    )
-    if not all((main, side, grout, schluter)):
-        return None
-
-    def product(segment):
-        tile = re.search(r"\bTile\s*:\s*Group\s+[^:]+:\s*(.+)$", segment, re.I)
-        value = tile.group(1) if tile else re.sub(r"^Group\s+[^:]+:\s*", "", segment, flags=re.I)
-        return re.sub(r"\s*[.;]?\s*PATTERN\s*:.*$", "", value, flags=re.I).strip(" .;-")
-
-    return {
-        "main": product(main.group(1)),
-        "side": product(side.group(1)),
-        "grout": grout.group(1).strip(" .;-"),
-        "schluter": schluter.group(1).strip(" .;-"),
-    }
-
-
-def application_kind(text):
+def application_kind(text, rules=None):
+    rules = rules_for(rules)
     value = " ".join(text.split()).casefold()
-    if "niche" in value:
-        return "niche"
-    if "shower drain" in value or "linear drain" in value:
-        return "drain"
-    if "backsplash" in value or "back splash" in value:
-        return "backsplash"
-    if "back wall only above countertop" in value or "between hutches" in value:
-        return "backsplash"
-    if re.search(r"(?:floor tile|tile floor)", value):
-        return "floor"
-    if any(label in value for label in ("shower wall", "wall tile", "main back wall", "side walls")):
-        return "shower_wall"
-    if "surround" in value:
-        return "surround"
-    return None
+    return next((category for phrase, category in sorted(
+                 rules["change_orders"]["application_phrases"].items(),
+                 key=lambda item: len(item[0]), reverse=True)
+                 if phrase.casefold() in value), None)
 
 
-def room_matches(text, room):
-    if scope_matches(text, room, ""):
+def room_matches(text, room, rules=None):
+    rules = rules_for(rules)
+    if scope_matches(text, room, "", rules):
         return True
     value, code = text.casefold(), room.casefold()
-    aliases = [
-        (r"\bguest suite\b", r"\(s\)_g$"),
-        (r"\bbutler'?s pantry\b", r"^bpantry$"),
-        (r"\bscullery\b", r"^scullery$"),
-        (r"\blaundry(?: room)?\s*(?:1st floor|one)?\b", r"^lndry1$"),
-        (r"\bpowder room\b", r"^bthpowder"),
-        (r"\bfireplace\b", r"^great"),
-    ]
-    return any(re.search(label, value) and re.search(pattern, code) for label, pattern in aliases)
+    return any(alias["phrase"].casefold() in value
+               and re.search(alias["room_pattern"], code, re.I)
+               for alias in rules["change_orders"]["room_scope_aliases"])
 
 
-def placeholder_contexts(records):
+def placeholder_contexts(records, rules=None):
+    rules = rules_for(rules)
     contexts = []
     active = {}
     for index, record in enumerate(records):
@@ -144,13 +97,13 @@ def placeholder_contexts(records):
         if "see change order" in text.casefold():
             context = active.get(room)
             if context:
-                explicit_kind = application_kind(text)
+                explicit_kind = application_kind(text, rules)
                 contexts.append({**context, "application": explicit_kind or context["application"],
                                  "placeholder": index,
                                  "order_ref": (int(match.group(1)) if (
                                      match := re.search(r"change order\s*#\s*(\d+)", text, re.I)) else None)})
             continue
-        kind = application_kind(text) if record.get("layout", {}).get("is_heading") else None
+        kind = application_kind(text, rules) if record.get("layout", {}).get("is_heading") else None
         if kind:
             active[room] = {"room": room, "application": kind, "heading": index}
     return contexts
@@ -166,24 +119,23 @@ def _product(segment):
     return value.strip(" .;-")
 
 
-ZONE_RE = re.compile(
-    r"(?:^|\s+-\s+)(MAIN BACK WALL|BENCH TOP|SIDE WALLS(?:\s*&\s*FRONT OF BENCH)?)\b", re.I)
-
-
-def wall_rows(instructions):
+def wall_rows(instructions, rules=None):
+    rules = rules_for(rules)
+    zone_labels = rules["change_orders"]["zone_labels"]
+    zone_re = re.compile(
+        r"(?:^|\s+-\s+)(" + "|".join(
+            re.escape(label) for label in sorted(zone_labels, key=len, reverse=True)
+        ) + r")\b", re.I)
     zones, grout, schluter = [], "", ""
     for instruction in instructions:
         text = " ".join(instruction["text"].split())
-        matches = list(ZONE_RE.finditer(text))
+        matches = list(zone_re.finditer(text))
         for position, match in enumerate(matches):
             end = matches[position + 1].start() if position + 1 < len(matches) else len(text)
             segment = text[match.end():end]
             product = _product(segment)
             if product and not re.match(r"^(?:pattern|tile)\s*:$", product, re.I):
-                labels = {"main back wall": "Main Back wall", "side walls": "Side walls",
-                          "bench top": "Bench top",
-                          "side walls & front of bench": "Side walls & front of bench"}
-                label = labels[" ".join(match.group(1).casefold().split())]
+                label = zone_labels[" ".join(match.group(1).casefold().split())]
                 zones.append((label, product))
         grout_match = re.search(r"Grout(?: Color)?(?: for All Walls)?\s*:\s*(.+?)(?=\s+-\s+(?:Schluter|This Price)|\s+NOTE:|$)", text, re.I)
         trim_match = re.search(r"Schluter(?: Trim)?(?: Color)?(?: for All Walls(?: And Bench)?)?(?: For Bench)?\s*:\s*(.+?)(?=\s+NOTE:|$)", text, re.I)
@@ -311,12 +263,13 @@ def surround_rows(instruction):
     return rows
 
 
-def resolve_placeholders(records, instructions, report):
+def resolve_placeholders(records, instructions, report, rules=None):
+    rules = rules_for(rules)
     used = set()
-    for context in placeholder_contexts(records):
+    for context in placeholder_contexts(records, rules):
         candidates = [(index, item) for index, item in enumerate(instructions)
-                      if room_matches(item["text"], context["room"])
-                      and application_kind(item["text"]) in {None, context["application"]}]
+                      if room_matches(item["text"], context["room"], rules)
+                      and application_kind(item["text"], rules) in {None, context["application"]}]
         if not candidates:
             report.append({"order": "", "text": records[context["placeholder"]]["type_description"],
                            "status": "review", "room": context["room"],
@@ -338,7 +291,7 @@ def resolve_placeholders(records, instructions, report):
                     generated = single_wall_rows(additions[0][1]["text"])
                 superseded = {index for index, item in all_candidates if item["order"] < latest_order}
             else:
-                generated = wall_rows([item for _, item in candidates])
+                generated = wall_rows([item for _, item in candidates], rules)
         elif context["application"] == "floor":
             parsed = [(index, item, floor_rows(item["text"])) for index, item in candidates]
             parsed = [value for value in parsed if value[2]]
@@ -388,7 +341,7 @@ def resolve_placeholders(records, instructions, report):
         end = placeholder + 1
         while end < len(records) and records[end]["room"] == context["room"]:
             if records[end].get("layout", {}).get("is_heading") and application_kind(
-                    records[end]["type_description"]):
+                    records[end]["type_description"], rules):
                 break
             end += 1
         if context["application"] in {"shower_wall", "floor", "surround"} or (
@@ -400,10 +353,13 @@ def resolve_placeholders(records, instructions, report):
 
         if generated != [("", "", False)]:
             qty = records[heading].get("qty", "")
+            # One source total cannot be assigned to every generated wall zone
+            # or checkerboard product. Only retain it for a single application.
+            shared_qty = qty if sum(1 for _, _, is_heading in generated if is_heading) <= 1 else ""
             page = records[heading].get("layout", {}).get("page")
             for text, row_qty, is_heading in generated:
                 records.append({"room": context["room"], "type_description": text,
-                                "selection_changed": "", "qty": qty if row_qty is None else row_qty,
+                                "selection_changed": "", "qty": shared_qty if row_qty is None else row_qty,
                                 "layout": {"page": page, "is_heading": is_heading,
                                            "derived_from_change": True}})
         for index, item in all_candidates:
@@ -419,16 +375,17 @@ def resolve_placeholders(records, instructions, report):
     return used
 
 
-def apply_changes(records, instructions):
+def apply_changes(records, instructions, rules=None):
+    rules = rules_for(rules)
     sections = []
     for i, record in enumerate(records):
         if (not sections or record["room"] != records[sections[-1][0]]["room"]
                 or record.get("layout", {}).get("is_heading")):
             sections.append([])
         sections[-1].append(i)
-    report = [{**instruction, "status": "review", "application": application_kind(instruction["text"]) or "",
+    report = [{**instruction, "status": "review", "application": application_kind(instruction["text"], rules) or "",
                "reason": "Unsupported or ambiguous instruction"} for instruction in instructions]
-    used = resolve_placeholders(records, instructions, report)
+    used = resolve_placeholders(records, instructions, report, rules)
     for instruction_index, instruction in enumerate(instructions):
         entry = report[instruction_index]
         if instruction_index in used:
@@ -442,7 +399,7 @@ def apply_changes(records, instructions):
         scope, operation, payload = action.groups()
         operation = operation.upper()
         eligible = [section for section in sections if scope_matches(
-            scope, records[section[0]]["room"], records[section[0]]["type_description"])]
+            scope, records[section[0]]["room"], records[section[0]]["type_description"], rules)]
         if operation == "REPLACE":
             replacement = re.fullmatch(r'"(.+?)"\s+WITH\s+"(.+?)"', payload, re.I)
             if not replacement:
@@ -458,7 +415,7 @@ def apply_changes(records, instructions):
             record.setdefault("original_description", record["type_description"])
             record["type_description"] = record["type_description"].replace(old, new, 1)
             entry.update(status="applied", reason="Exact replacement", room=record["room"],
-                         application=application_kind(scope) or application_kind(record["type_description"]) or "")
+                         application=application_kind(scope, rules) or application_kind(record["type_description"], rules) or "")
             continue
         # Heading words must all be present in the explicit payload, rather than
         # accepting a fuzzy similarity score or guessing from the project name.
@@ -476,11 +433,11 @@ def apply_changes(records, instructions):
             else:
                 records[i].pop("excluded_by_change", None)
         entry.update(status="applied", room=records[matched[0]]["room"],
-                     application=application_kind(scope) or application_kind(records[matched[0]]["type_description"]) or "",
+                     application=application_kind(scope, rules) or application_kind(records[matched[0]]["type_description"], rules) or "",
                      reason="Source section excluded" if operation == "DELETE" else "ADD already represented by source section")
     # A numbered placeholder can point to complementary ADD/DELETE instructions
     # that the legacy exact matcher applied directly to existing source sections.
-    for context in placeholder_contexts(records):
+    for context in placeholder_contexts(records, rules):
         if records[context["placeholder"]].get("excluded_by_change"):
             continue
         applied = [entry for entry in report if entry["status"] == "applied"

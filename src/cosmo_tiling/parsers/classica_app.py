@@ -2,26 +2,21 @@
 from collections import OrderedDict
 
 from .classica_columns import (
-    APPLICATION_ALIASES, LABEL_ALIASES, application_kind, extract, field,
-    normalized, product_fields, table_rows,
+    application_kind,
+    extract,
+    field,
+    normalized,
+    product_fields,
+    structured_rows,
 )
+from .classica_rules import rules_for
 from .common import OrderRow
-
-REVIEW_TYPES = {"Unclassified (review)", "Review required"}
-TYPE_NAMES = {"shower_wall": ("Shower wall", "Shower Wall"),
-              "shower_floor": ("Shower Floor", "Shower Floor"),
-              "floor": ("Floor Tile", "Floor Tile"),
-              "backsplash": ("Backsplash", "Backsplash"),
-              "accent": ("Accent", "Accent"),
-              "surround": ("Wall Tile", "Wall Tile"), "wall": ("Wall Tile", "Wall Tile")}
 
 
 def build_classica_document(path, template, *, apply_revisions=True):
-    document = extract(path, apply_revisions=apply_revisions)
-    applications = {**APPLICATION_ALIASES, **{
-        normalized(k): v for k, v in template.get("application_aliases", {}).items()}}
-    labels = {**LABEL_ALIASES, **{
-        normalized(k): v for k, v in template.get("label_aliases", {}).items()}}
+    rules = rules_for(template)
+    review_types = set(rules["review"]["row_types"])
+    document = extract(path, apply_revisions=apply_revisions, rules=rules)
     rooms = OrderedDict()
     for raw in document["rows"]:
         rooms.setdefault(raw["room"], []).append(raw)
@@ -34,41 +29,59 @@ def build_classica_document(path, template, *, apply_revisions=True):
             if raw.get("excluded_by_change"):
                 continue
             text = " ".join(raw["type_description"].split())
-            if raw.get("layout", {}).get("is_heading") and application_kind(text, applications):
+            if raw.get("layout", {}).get("is_heading") and application_kind(text, rules):
                 pattern = ""
             if normalized(text).startswith("pattern:"):
                 pattern = text.split(":", 1)[1].strip()
-            if field(text, labels)[0] == "selection":
-                selections.setdefault(product_fields(text, labels), []).append((raw, pattern))
+            if field(text, rules)[0] == "selection":
+                selections.setdefault(product_fields(text, rules), []).append((raw, pattern))
         related = ""
-        for item_type, size, description, quantity, unit in table_rows(raw_rows, applications, labels):
-            canonical = application_kind(item_type, applications)
-            pattern = ""
-            source = description
+        for rendered in structured_rows(raw_rows, rules):
+            item_type, size, description = rendered["type"], rendered["size"], rendered["description"]
+            canonical = application_kind(item_type, rules)
+            pattern = rendered["pattern"]
+            source = rendered["source"] or description
             if canonical:
-                display, related = TYPE_NAMES.get(canonical, (item_type, item_type))
+                presentation = rules["applications"]["presentation"].get(canonical)
+                if presentation:
+                    display = item_type if presentation.get("preserve_source_type") else presentation["display"]
+                    related = presentation["related"]
+                else:
+                    display, related = item_type, item_type
             else:
                 display = item_type
+                application_presentation = rules["applications"]["presentation"].get(
+                    rendered["application"])
+                if application_presentation:
+                    related = application_presentation["related"]
             matches = selections.get((size, description), [])
             if matches:
                 raw, pattern = matches[0]
                 source = f"{raw['type_description']} | Qty: {raw['qty']} | Changed: {raw['selection_changed']}"
-            elif item_type in {"Caulk", "Drain riser plug", "Sealer"}:
+            elif item_type in {
+                    rules["accessories"]["display"]["caulk"],
+                    rules["accessories"]["drain_riser"]["type"],
+                    rules["accessories"]["sealer"]["type"]}:
                 source = f"Derived accessory rule for {room}: {description}"
             else:
                 candidates = [r for r in raw_rows if description and description in r["type_description"]]
                 if candidates:
                     source = candidates[0]["type_description"]
             rows.append(OrderRow(room=room, item_type=display, size_area=size,
-                                 description=description, order_qty=quantity if quantity != "" else None,
-                                 unit=unit, pattern=pattern, source_text=source,
-                                 related_type=related, comments="Requires review" if item_type in REVIEW_TYPES else ""))
+                                 description=description,
+                                 measured_qty=rendered["measured_qty"],
+                                 order_qty=(rendered["quantity"] if rendered["quantity"] != "" else None),
+                                 unit=rendered["unit"], pattern=pattern, source_text=source,
+                                 waste_percent=rendered["waste_percent"],
+                                 order_formula_override=rendered["formula"],
+                                 related_type=related, comments=rendered["comments"]))
     for change in document["change_report"]:
         if change["status"] == "review":
-            rows.append(OrderRow(room=change.get("room", "Review"), item_type="Review required",
+            rows.append(OrderRow(room=change.get("room", "Review"),
+                                 item_type=rules["review"]["required_type"],
                                  description=change["text"], comments=change["reason"],
                                  source_text=f"Change Order #{change['order']}: {change['text']}"))
-    if not any(row.item_type not in REVIEW_TYPES for row in rows):
+    if not any(row.item_type not in review_types for row in rows):
         raise ValueError("No recognized tile-order selections were found in the PDF")
     return rows, document
 

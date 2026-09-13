@@ -4,7 +4,7 @@
   "parser": "classica",
   "workbook_title": "COSMOPOLITAN TILE ORDER",
   "header_title": "Classica Tile Order",
+  "rules_file": "../rules/classica-rules.json",
   "defaults": {},
-  "application_aliases": {},
-  "label_aliases": {}
+  "classica_rules": {}
 }

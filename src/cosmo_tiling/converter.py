@@ -2,28 +2,36 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 from typing import Iterable
-
-from cosmo_tiling.parsers.common import OrderRow, clean_text
-from cosmo_tiling.parsers.classica import (
-    FOOTER_RE,
-    build_reference_rows,
-    extract_size,
-    parse_metadata,
-    parse_order_rows,
-)
-from cosmo_tiling.parsers.saussy import build_saussy_rows, parse_saussy_metadata
-from cosmo_tiling.parsers.classica_app import build_classica_document, append_source_sheets, REVIEW_TYPES
 
 import pdfplumber
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
+from cosmo_tiling.parsers.classica import (  # noqa: F401 - launcher compatibility exports
+    FOOTER_RE,
+    build_reference_rows,
+    extract_size,
+    parse_metadata,
+    parse_order_rows,
+)
+from cosmo_tiling.parsers.classica_app import (
+    append_source_sheets,
+    build_classica_document,
+)
+from cosmo_tiling.parsers.classica_rules import (
+    load_classica_rules,
+    validate_classica_rules,
+)
+from cosmo_tiling.parsers.classica_rules import (
+    merge_rules as merge_classica_rule_values,
+)
+from cosmo_tiling.parsers.common import OrderRow, clean_text
+from cosmo_tiling.parsers.saussy import build_saussy_rows, parse_saussy_metadata
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 DEFAULT_TEMPLATE = PACKAGE_ROOT / "config" / "templates" / "classica-template.json"
@@ -82,6 +90,20 @@ def load_template(template_path: Path | str = DEFAULT_TEMPLATE) -> dict:
         if not isinstance(values, dict) or any(not isinstance(k, str) or not isinstance(v, str)
                                                 for k, v in values.items()):
             raise ValueError(f"Template {key} must map labels to categories: {path}")
+
+    if template["parser"] == "classica" and "rules_file" in template:
+        rules_path_value = template.get("rules_file")
+        if not isinstance(rules_path_value, str) or not rules_path_value.strip():
+            raise ValueError(f"Classica template rules_file must be a path: {path}")
+        rules_path = (path.parent / rules_path_value).resolve()
+        base_rules = load_classica_rules(rules_path)
+        overrides = template.get("classica_rules", {})
+        if not isinstance(overrides, dict):
+            raise ValueError(f"Template classica_rules must be an object: {path}")
+        template["classica_rules"] = validate_classica_rules(
+            merge_classica_rule_values(base_rules, overrides),
+            f"{path}.classica_rules",
+        )
 
     reference_rules = template.get("reference_rules")
     if reference_rules:
@@ -277,9 +299,11 @@ def convert(
         metadata = parse_metadata(lines)
         rows, document = build_classica_document(pdf_path, template)
         display_names = {}
-        review_count = sum(row.item_type in REVIEW_TYPES for row in rows)
+        review = template["classica_rules"]["review"]
+        review_count = sum(row.item_type in set(review["row_types"]) for row in rows)
         if review_count:
-            metadata["Review required"] = f"{review_count} rows or instructions; see marked rows and source sheets"
+            metadata[review["metadata_label"]] = review["metadata_template"].format(
+                count=review_count)
     elif template["parser"] == "saussy":
         metadata = parse_saussy_metadata(lines)
         rules = resolve_template_rules(template, metadata)

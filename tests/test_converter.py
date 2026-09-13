@@ -121,8 +121,18 @@ class ConverterTests(unittest.TestCase):
                     if row[0].value == "Shower wall"
                     and row[2].value == "CONRAD BRICK, Siren, CB95"
                 )
-                self.assertIsNone(owner_wall[3].value)
-                self.assertTrue(all(row.waste_percent is None for row in rows))
+                self.assertEqual(owner_wall[3].value, "=ROUND(206*(1+10/100),0)")
+                self.assertEqual(owner_wall[5].value,
+                                 "Review - 10% waste applied to PDF measured quantity 206 SF")
+                self.assertNotRegex(owner_wall[3].value, r"\b[A-Z]{1,3}\d+\b")
+                audit_owner_wall = next(
+                    row for row in workbook["Data"].iter_rows(min_row=2)
+                    if row[0].value == "Shower wall"
+                    and row[2].value == "CONRAD BRICK, Siren, CB95"
+                )
+                self.assertEqual(audit_owner_wall[3].value, 206)
+                self.assertEqual(audit_owner_wall[4].value, "=ROUND(206*(1+10/100),0)")
+                self.assertTrue(any(row.waste_percent is not None for row in rows))
             finally:
                 workbook.close()
 

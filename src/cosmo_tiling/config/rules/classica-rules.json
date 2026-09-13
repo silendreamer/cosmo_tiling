@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "applications": {
+    "aliases": {
+      "backsplash": "backsplash",
+      "scullery backsplash": "backsplash",
+      "floor tile": "floor",
+      "pavers": "pavers",
+      "shower floor tile": "shower_floor",
+      "shower floor": "shower_floor",
+      "shower wall": "shower_wall",
+      "shower walls": "shower_wall",
+      "shower wall tile": "shower_wall",
+      "shower wall tiles": "shower_wall",
+      "surround": "surround",
+      "wall tile": "wall",
+      "main back wall": "shower_wall_area",
+      "side walls": "shower_wall_area",
+      "bench top": "shower_wall_area",
+      "side walls & front of bench": "shower_wall_area",
+      "accent": "accent",
+      "niche tile": "accent"
+    },
+    "presentation": {
+      "shower_wall": {"display": "Shower wall", "related": "Shower Wall", "priority": 0},
+      "shower_wall_area": {"display": "Shower wall", "related": "Shower Wall", "priority": 0, "preserve_source_type": true},
+      "shower_floor": {"display": "Shower Floor", "related": "Shower Floor", "priority": 1},
+      "floor": {"display": "Floor Tile", "related": "Floor Tile", "priority": 2},
+      "backsplash": {"display": "Backsplash", "related": "Backsplash", "priority": 3},
+      "accent": {"display": "Accent", "related": "Accent", "priority": 3},
+      "surround": {"display": "Wall Tile", "related": "Wall Tile", "priority": 3},
+      "wall": {"display": "Wall Tile", "related": "Wall Tile", "priority": 3},
+      "pavers": {"display": "Pavers", "related": "Pavers", "priority": 3}
+    }
+  },
+  "fields": {
+    "categories": ["selection", "drain_shape", "drain_finish", "grout_color", "schluter", "niche_reference", "context"],
+    "aliases": {
+      "shower drain": "drain_shape",
+      "shower drain finish": "drain_finish",
+      "grout color": "grout_color",
+      "grout colour": "grout_color",
+      "grout": "context",
+      "pattern": "context",
+      "flooring material": "context",
+      "tile option (inside of niche)": "niche_reference"
+    },
+    "selection_patterns": ["^area\\s+\\w+\\s+selection\\s*:", "^flooring\\s+selection\\s*:"],
+    "material_prefixes": ["material"],
+    "schluter_prefixes": ["schluter"],
+    "niche_prefixes": ["wall niche /"],
+    "corner_shelf_prefixes": ["corner shelf /"],
+    "supply_prefixes": ["sealer", "grout release"],
+    "context_prefixes": ["bath fixtures /", "bathroom type /"]
+  },
+  "recognition": {
+    "compact_summary_pattern": "^(?P<product>.+?)\\s*-\\s*GROUT\\s*:\\s*(?P<grout>.+?)\\s+AND\\s+SCHLUTER\\s*:\\s*(?P<schluter>.+?)\\s*$",
+    "thin_brick_pattern": "\\bthin\\s*brick\\b",
+    "thin_brick_detail_pattern": "^(?:COLOR|PAINT)\\s*:",
+    "generic_product_pattern": "^(?:Tile|Stone)\\s*\\([^)]*\\)\\s*Group\\s+[^:]+$",
+    "product_group_prefix_pattern": "^(?:Tile|Stone)\\s*\\([^)]*\\)\\s*Group\\s+[^:]+:\\s*",
+    "stone_material_pattern": "(?:SELECTION|MATERIAL)\\s*:\\s*Stone\\b",
+    "note_prefixes": ["*", "see", "install", "lay", "align", "orient", "alternate", "change", "confirm", "confrim", "stacked", "vertical", "running", "herringbone", "perpendicular", "tile direction:", "selection:", "color story:", "center from", "main back wall", "on wall with", "to ceiling", "bleached wood?"],
+    "tub_room_phrases": ["shower / tub combination", "tub combination", "tub and shower", "tub & shower", "tub / shower", "shower and tub", "shower & tub"]
+  },
+  "units": {
+    "accepted": ["SF", "EA", "LF", "PC", "PCS", "BOX", "BOXES", "BXS", "QT", "GAL", "ROLL", "ROLLS"],
+    "normalize": {"PC": "PCS", "BOX": "BXS", "BOXES": "BXS"}
+  },
+  "quantity": {
+    "formula_template": "=ROUND({measured}*(1+{waste}/100),0)",
+    "review_comment_template": "Review - {waste}% waste applied to PDF measured quantity {measured} {unit}",
+    "ambiguous_comment": "Review - quantity left blank because the PDF does not provide a unique measurement for this product",
+    "waste_rules": [
+      {"name": "special_layout", "any_keywords": ["herringbone", "diagonal", "checkerboard"], "percent": 15},
+      {"name": "large_stacked_horizontal", "all_keyword_groups": [["stacked", "stack", "stkd"], ["horizontal", "horizantal", "horiz"]], "min_dimension": 15, "percent": 22},
+      {"name": "long_plank", "min_dimension": 36, "percent": 15},
+      {"name": "large_format", "min_dimension": 15, "percent": 12},
+      {"name": "floor_without_size", "applications": ["floor", "pavers"], "percent": 12},
+      {"name": "standard_or_mosaic", "percent": 10}
+    ]
+  },
+  "accessories": {
+    "categories": ["drain", "niche", "corner_shelf", "schluter", "grout", "caulk", "sealer", "grout_release", "accent"],
+    "purchasable_categories": ["drain", "niche", "corner_shelf"],
+    "selection_only_categories": ["schluter", "grout"],
+    "order": {"schluter": 0, "niche": 1, "corner_shelf": 1, "accent": 1.5, "grout": 2, "sealer": 3, "grout_release": 3},
+    "display": {
+      "drain": "Shower Drain",
+      "schluter": "Schluter",
+      "niche": "Schluter niche",
+      "corner_shelf": "Corner Shelf",
+      "grout": "Grout",
+      "sealer": "Sealer",
+      "grout_release": "Grout Release",
+      "caulk": "Caulk"
+    },
+    "drain_riser": {"enabled": true, "type": "Drain riser plug", "description": "Drain riser plug", "quantity": 1, "unit": "EA"},
+    "caulk": {"applications": ["backsplash"], "tub_applications": ["shower_wall", "floor"], "description_suffix": " sanded", "unit": "PCS"},
+    "sealer": {"stone_only": true, "type": "Sealer", "description": "Sealer", "quantity": null, "unit": ""}
+  },
+  "change_orders": {
+    "application_categories": ["niche", "drain", "backsplash", "floor", "shower_wall", "surround"],
+    "approved_headings": ["Change Orders Approved"],
+    "stop_headings": ["Included at Start", "Related Items from other Vendors"],
+    "instruction_prefixes": ["Tile", "Tile Floor", "Floor Tile", "Backsplash", "Shower Wall", "Wall Niche", "Shower Drain", "Fireplace Surround"],
+    "application_phrases": {
+      "niche": "niche",
+      "shower drain": "drain",
+      "linear drain": "drain",
+      "backsplash": "backsplash",
+      "back splash": "backsplash",
+      "back wall only above countertop": "backsplash",
+      "between hutches": "backsplash",
+      "floor tile": "floor",
+      "tile floor": "floor",
+      "shower wall": "shower_wall",
+      "wall tile": "shower_wall",
+      "main back wall": "shower_wall",
+      "side walls": "shower_wall",
+      "surround": "surround"
+    },
+    "room_scope_aliases": [
+      {"phrase": "guest suite", "room_pattern": "\\(s\\)_g$"},
+      {"phrase": "butler's pantry", "room_pattern": "^bpantry$"},
+      {"phrase": "butlers pantry", "room_pattern": "^bpantry$"},
+      {"phrase": "scullery", "room_pattern": "^scullery$"},
+      {"phrase": "laundry", "room_pattern": "^lndry1$"},
+      {"phrase": "powder room", "room_pattern": "^bthpowder"},
+      {"phrase": "fireplace", "room_pattern": "^great"}
+    ],
+    "scope_patterns": [
+      {"scope_pattern": "(?:bedroom|bed)\\s*#?\\s*(\\d+)\\b", "target": "room", "target_pattern": "_BR{0}S?$"},
+      {"scope_pattern": "\\b(?:primary|owner's|owners)\\b", "target": "room", "target_pattern": "_(?:PRIM|OWN)(?:/|$)"},
+      {"scope_pattern": "\\bbasement\\b", "target": "room", "target_pattern": "_BASE$"},
+      {"scope_pattern": "\\bfireplace\\b", "target": "heading", "target_pattern": "^Surround\\s*/"},
+      {"scope_pattern": "\\bkitchen\\b", "target": "room", "target_pattern": "^KITCHEN"}
+    ],
+    "zone_labels": {
+      "main back wall": "Main Back wall",
+      "side walls": "Side walls",
+      "bench top": "Bench top",
+      "side walls & front of bench": "Side walls & front of bench"
+    }
+  },
+  "review": {
+    "row_types": ["Unclassified (review)", "Review required"],
+    "unclassified_type": "Unclassified (review)",
+    "required_type": "Review required",
+    "required_comment": "Requires review",
+    "metadata_label": "Review required",
+    "metadata_template": "{count} rows or instructions; see marked rows and source sheets"
+  }
+}
