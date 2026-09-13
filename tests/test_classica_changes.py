@@ -45,6 +45,30 @@ class ChangeTests(unittest.TestCase):
         self.assertEqual(records[1]['original_description'], 'AREA A SELECTION: Old Product')
         self.assertEqual(records[1]['type_description'], 'AREA A SELECTION: New Product')
 
+    def test_later_change_order_supplies_explicit_wall_areas(self):
+        text = '''Change Orders Approved
+Included at Start Approved
+Change Order #5
+\u2022 Tile - Bed #5 Bath Shower - Upgrade tile as follows:
+- Main Back Wall: Group 4: Conrad Brick 2x8, Siren. PATTERN: Stacked Horizontal
+- Side Walls: Group 4: Conrad Brick 2x8, Sage. PATTERN: Stacked Horizontal
+- Grout Color for All Walls: Snow White
+- Schluter Trim Color for All Walls: TSBG
+NOTE: Price includes credit.
+'''
+        records = [record('Shower Wall Tile', True, 'BTHF_BR5'),
+                   record('*See Change Order for Tile Selection', True, 'BTHF_BR5'),
+                   record('PATTERN: Stacked Horizontal', room='BTHF_BR5')]
+        report = apply_changes(records, read_changes(text))
+        rendered = table_rows(records)
+        self.assertEqual(report[0]['status'], 'applied')
+        self.assertEqual(
+            [(row[0], row[1], row[2]) for row in rendered],
+            [('Main Back wall', '2x8', 'Conrad Brick, Siren'),
+             ('Side walls', '2x8', 'Conrad Brick, Sage'),
+             ('Schluter', '', 'TSBG'), ('Grout', '', 'Snow White')],
+        )
+
     def test_reads_only_current_approved_changes_in_order(self):
         text = '''Change Orders Approved
 Change Order #2

@@ -140,6 +140,7 @@ APPLICATION_ALIASES = {
     "shower wall": "shower_wall", "shower walls": "shower_wall",
     "shower wall tile": "shower_wall", "shower wall tiles": "shower_wall",
     "surround": "surround", "wall tile": "wall",
+    "main back wall": "shower_wall_area", "side walls": "shower_wall_area",
     "accent": "accent", "niche tile": "accent",
 }
 LABEL_ALIASES = {
@@ -230,7 +231,9 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
         item = (text, row["qty"])
         accessory_context = sections and sections[-1]["heading"] and field(
             sections[-1]["heading"][0], label_aliases)[0] in {"niche", "corner_shelf"}
-        is_note = not row["qty"] and (NOTE_RE.match(text) or application_summary(text) or (
+        is_note = not row["qty"] and ((NOTE_RE.match(text)
+                                      and not application_kind(text, application_aliases))
+                                     or application_summary(text) or (
             accessory_context and not application_kind(text, application_aliases)))
         if row.get("layout", {}).get("is_heading") and not is_note:
             sections.append({"heading": item, "children": []})
@@ -313,9 +316,11 @@ def group_applications(raw_rows, application_aliases=None, label_aliases=None):
                 continue  # Context remains available in raw JSON.
             else:
                 unclassified.append((text, qty))
-    walls = [b for b in blocks if b.get("kind") == "shower_wall"]
+    walls = [b for b in blocks if b.get("kind") in {"shower_wall", "shower_wall_area"}]
     for text, qty, reference in niches:
         matches = walls
+        if len(matches) > 1 and all(match.get("kind") == "shower_wall_area" for match in matches):
+            matches = matches[-1:]
         if len(matches) == 1:
             matches[0]["accessories"].append((text, qty))
             interior = [b for b in blocks if reference and application_kind(reference, application_aliases)
@@ -375,7 +380,7 @@ def table_rows(raw_rows, application_aliases=None, label_aliases=None):
         output.append(["Drain riser plug", "", "Drain riser plug", 1, "EA"])
 
     # Presentation preferences only; these never determine detection/membership.
-    priority = {"shower_wall": 0, "shower_floor": 1, "floor": 2}
+    priority = {"shower_wall": 0, "shower_wall_area": 0, "shower_floor": 1, "floor": 2}
     for block in sorted(blocks, key=lambda b: priority.get(b.get("kind"), 3)):
         application = block.get("kind")
         caulk_required = (
