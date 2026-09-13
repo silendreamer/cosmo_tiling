@@ -69,6 +69,19 @@ NOTE: Price includes credit.
              ('Schluter', '', 'TSBG'), ('Grout', '', 'Snow White')],
         )
 
+    def test_complete_room_table_wins_over_older_wall_prose_without_placeholder(self):
+        records = [record('Shower Wall Tile', True, 'BTH_BR3S'),
+                   record('AREA A SELECTION: MESMERIST: 3x12, Whimsy, MM34', room='BTH_BR3S')]
+        instruction = {'order': 5, 'text':
+            'Tile - Bed #3 Shared Bath Shower - Change material to: '
+            '- MAIN BACK WALL: Group 4: Mythology 4x12, Aura, MY95 '
+            '- SIDE WALLS: Group 4: Mythology 4x12, Olympus, MY95 '
+            '- Grout Color for All Walls: Ash - Schluter Trim Color for All Walls: Gray'}
+        report = apply_changes(records, [instruction])
+        self.assertEqual([(item[0], item[1], item[2]) for item in table_rows(records)],
+                         [('Shower Wall Tile', '3x12', 'MESMERIST, Whimsy, MM34')])
+        self.assertEqual(report[0]['status'], 'ignored')
+
     def test_checkerboard_and_later_clarifications_resolve_floor_placeholder(self):
         records = [record('Floor Tile', True, 'BTHF_PRIM'),
                    record('*See Change Order for Tile Selection', True, 'BTHF_PRIM')]

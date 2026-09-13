@@ -209,6 +209,30 @@ def wall_rows(instructions):
     return rows
 
 
+def single_wall_rows(instruction):
+    """Parse a one-material wall ADD that supersedes older zoned selections."""
+    text = " ".join(instruction.split())
+    action = re.search(r"\s+-\s+ADD\s+-\s+(.+)$", text, re.I)
+    if not action:
+        return []
+    product = _product(action.group(1))
+    if not product:
+        return []
+    rows = [("Shower Wall Tile", "", True)]
+    pattern = re.search(r"PATTERN\s*:\s*(.+?)(?=\s+-\s+(?:\(?Tile\)?|GROUP)\b)",
+                        action.group(1), re.I)
+    if pattern:
+        rows.append(("PATTERN: " + pattern.group(1).strip(" .;-"), "", False))
+    rows.append(("AREA A SELECTION: " + product, None, False))
+    grout = re.search(r"\s+-\s+Grout(?: Color)?\s*:\s*(.+?)(?=\s+-\s+Schluter\s*:|$)", text, re.I)
+    trim = re.search(r"\s+-\s+Schluter\s*:\s*(.+?)(?=\s+NOTE:|$)", text, re.I)
+    if grout:
+        rows.append(("GROUT COLOR: " + grout.group(1).strip(" .;-"), "", False))
+    if trim:
+        rows.append(("SCHLUTER: " + trim.group(1).strip(" .;-"), "", False))
+    return rows
+
+
 def floor_rows(instruction):
     text = " ".join(instruction.split())
     matches = list(re.finditer(r"Group\s+[^:\-]+\s*[:\-]\s*", text, re.I))
@@ -299,9 +323,22 @@ def resolve_placeholders(records, instructions, report):
                            "application": context["application"],
                            "reason": "No matching approved change order"})
             continue
+        all_candidates = list(candidates)
+        superseded = set()
         generated = []
         if context["application"] == "shower_wall":
-            generated = wall_rows([item for _, item in candidates])
+            actions = [(index, item) for index, item in candidates if re.search(
+                r"\s+-\s+(?:ADD|DELETE|REPLACE|CHANGE)\s+-\s+", item["text"], re.I)]
+            if actions:
+                latest_order = max(item["order"] for _, item in actions)
+                candidates = [(index, item) for index, item in actions if item["order"] == latest_order]
+                additions = [(index, item) for index, item in candidates if re.search(
+                    r"\s+-\s+ADD\s+-\s+", item["text"], re.I)]
+                if len(additions) == 1:
+                    generated = single_wall_rows(additions[0][1]["text"])
+                superseded = {index for index, item in all_candidates if item["order"] < latest_order}
+            else:
+                generated = wall_rows([item for _, item in candidates])
         elif context["application"] == "floor":
             parsed = [(index, item, floor_rows(item["text"])) for index, item in candidates]
             parsed = [value for value in parsed if value[2]]
@@ -325,6 +362,7 @@ def resolve_placeholders(records, instructions, report):
                 latest_order = max(item["order"] for _, item in additions)
                 latest = [(index, item) for index, item in additions if item["order"] == latest_order]
                 if len(latest) == 1:
+                    superseded = {index for index, item in all_candidates if item["order"] < latest_order}
                     candidates = latest
                     generated = niche_rows(latest[0][1]["text"])
         elif context["application"] == "backsplash" and len(candidates) == 1:
@@ -368,11 +406,16 @@ def resolve_placeholders(records, instructions, report):
                                 "selection_changed": "", "qty": qty if row_qty is None else row_qty,
                                 "layout": {"page": page, "is_heading": is_heading,
                                            "derived_from_change": True}})
-        for index, item in candidates:
+        for index, item in all_candidates:
             used.add(index)
-            report[index].update(status="applied", room=context["room"],
-                                 application=context["application"],
-                                 reason="Resolved matching See Change Order placeholder")
+            if index in superseded:
+                report[index].update(status="superseded", room=context["room"],
+                                     application=context["application"],
+                                     reason="Superseded by a later approved change order")
+            else:
+                report[index].update(status="applied", room=context["room"],
+                                     application=context["application"],
+                                     reason="Resolved matching See Change Order placeholder")
     return used
 
 
@@ -390,49 +433,11 @@ def apply_changes(records, instructions):
         entry = report[instruction_index]
         if instruction_index in used:
             continue
-        wall = (None if re.search(r"\s+-\s+(?:ADD|DELETE|REPLACE)\s+-\s+",
-                                  instruction["text"], re.I)
-                else split_wall_selection(instruction["text"]))
-        if wall:
-            scope = re.split(r"\s+-\s+(?:Upgrade|Change)\b", instruction["text"],
-                             maxsplit=1, flags=re.I)[0]
-            eligible = [section for section in sections
-                        if scope_matches(scope, records[section[0]]["room"],
-                                         records[section[0]]["type_description"])
-                        and re.fullmatch(r"Shower Wall Tile", records[section[0]]["type_description"], re.I)]
-            if len(eligible) == 1:
-                matched = eligible[0]
-                cursor = matched[-1] + 1
-                while cursor < len(records) and records[cursor]["room"] == records[matched[0]]["room"]:
-                    candidate = records[cursor]
-                    if candidate.get("layout", {}).get("is_heading") and not re.match(
-                            r"\*?See\s+Change Order", candidate["type_description"], re.I):
-                        break
-                    matched.append(cursor)
-                    cursor += 1
-                room = records[matched[0]]["room"]
-                qty = records[matched[0]]["qty"]
-                for i in matched:
-                    records[i]["excluded_by_change"] = instruction["text"]
-                page = records[matched[0]].get("layout", {}).get("page")
-                synthetic = [
-                    ("Main Back wall", "", True),
-                    ("AREA A SELECTION: " + wall["main"], qty, False),
-                    ("Side walls", "", True),
-                    ("AREA A SELECTION: " + wall["side"], qty, False),
-                    ("GROUT COLOR: " + wall["grout"], "", False),
-                    ("SCHLUTER: " + wall["schluter"], "", False),
-                ]
-                records.extend({"room": room, "type_description": text,
-                                "selection_changed": "", "qty": row_qty,
-                                "layout": {"page": page, "is_heading": heading,
-                                           "derived_from_change": instruction["order"]}}
-                               for text, row_qty, heading in synthetic)
-                entry.update(status="applied", room=room, application="shower_wall",
-                             reason="Explicit main-wall and side-wall selections")
-                continue
         action = re.match(r"(.+?)\s+-\s+(ADD|DELETE|REPLACE)\s+-\s+(.+)$", instruction["text"], re.I)
         if not action:
+            if not entry.get("room"):
+                entry.update(status="ignored",
+                             reason="No See Change Order placeholder; current PDF rows retained")
             continue
         scope, operation, payload = action.groups()
         operation = operation.upper()
