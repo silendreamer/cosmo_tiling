@@ -12,6 +12,7 @@ TYPE_NAMES = {"shower_wall": ("Shower wall", "Shower Wall"),
               "shower_floor": ("Shower Floor", "Shower Floor"),
               "floor": ("Floor Tile", "Floor Tile"),
               "backsplash": ("Backsplash", "Backsplash"),
+              "accent": ("Accent", "Accent"),
               "surround": ("Wall Tile", "Wall Tile"), "wall": ("Wall Tile", "Wall Tile")}
 
 
@@ -87,10 +88,11 @@ def append_source_sheets(output_path, document, prefix=""):
     source.column_dimensions["B"].width = 100
     if document["change_report"]:
         report = workbook.create_sheet(prefix + "Change Review")
-        report.append(["Change Order", "Status", "Room", "Instruction", "Reason"])
+        report.append(["Change Order", "Status", "Room", "Application", "Instruction", "Reason"])
         for entry in document["change_report"]:
-            report.append([entry["order"], entry["status"], entry.get("room", ""), entry["text"], entry["reason"]])
-        report.column_dimensions["D"].width = 100
+            report.append([entry["order"], entry["status"], entry.get("room", ""),
+                           entry.get("application", ""), entry["text"], entry["reason"]])
+        report.column_dimensions["E"].width = 100
     # PDF content is audit text, including any leading equals signs.
     for sheet in workbook.worksheets:
         if sheet.title in {prefix + "Source", prefix + "Change Review"}:

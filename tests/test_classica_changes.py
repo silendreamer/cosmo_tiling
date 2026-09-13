@@ -69,6 +69,72 @@ NOTE: Price includes credit.
              ('Schluter', '', 'TSBG'), ('Grout', '', 'Snow White')],
         )
 
+    def test_checkerboard_and_later_clarifications_resolve_floor_placeholder(self):
+        records = [record('Floor Tile', True, 'BTHF_PRIM'),
+                   record('*See Change Order for Tile Selection', True, 'BTHF_PRIM')]
+        instructions = [
+            {'order': 5, 'text': 'Tile Floor - Primary Bath - ADD - CHECKERBOARD - Group 3: Perpetuo: 24x24, White, PT20 AND Group 3: Perpetuo: 24x24, Beige, PT22 - Grout: TBD Schluter: TBD.'},
+            {'order': 12, 'text': 'Tile - Primary Bath Floor Tile - CLARIFICATION - Grout Color: Warm Gray - Tile Selection on CO #5'},
+            {'order': 12, 'text': 'Tile - Primary Bath Floor Tile - CLARIFICATION - Schluter Color: TSBG - Tile Selection on CO #5'},
+        ]
+        report = apply_changes(records, instructions)
+        rows = table_rows(records)
+        self.assertEqual([item[2] for item in rows],
+                         ['Perpetuo, White, PT20', 'Perpetuo, Beige, PT22', 'TSBG', 'Warm Gray'])
+        self.assertTrue(all(item['status'] == 'applied' for item in report))
+        self.assertTrue(all(item['application'] == 'floor' for item in report))
+
+    def test_latest_unique_niche_add_resolves_placeholder(self):
+        records = [record('Wall Niche / Schluter / Model (12x12)', True, 'BTHF_BR5'),
+                   record('See Change Order for new niche selection', True, 'BTHF_BR5')]
+        instructions = [
+            {'order': 6, 'text': 'Tile - Bed #5 Full Bath Shower Niche - ADD - Group 4: Stagecraft 3x12 Navy - Installed in niche'},
+            {'order': 12, 'text': 'Tile Options - Bed 5 Bath Shower Niche - ADD - Grp 7 Uptown Glass 1x1 Ebony UP22 - Same grout'},
+        ]
+        report = apply_changes(records, instructions)
+        rows = table_rows(records)
+        self.assertTrue(any(item[1] == '1x1' and 'Uptown Glass' in item[2] for item in rows))
+        self.assertEqual(report[1]['status'], 'applied')
+        self.assertEqual(report[1]['room'], 'BTHF_BR5')
+
+    def test_backplash_extension_without_new_product_removes_only_placeholder(self):
+        records = [record('Backsplash / Tile', True, 'KITCHEN/inc Pantry'),
+                   record('See Change Order for backsplash around windows', True, 'KITCHEN/inc Pantry'),
+                   record('AREA A SELECTION: Tile (DalTile) Group 4: SAMPLE: 3x12, White', False,
+                          'KITCHEN/inc Pantry')]
+        instructions = [{'order': 4,
+                         'text': 'Tile Backsplash - Kitchen - Carry Tile Up & Around Windows'}]
+        report = apply_changes(records, instructions)
+        rows = table_rows(records)
+        self.assertEqual(rows[0][1:3], ['3x12', 'SAMPLE, White'])
+        self.assertEqual(report[0]['status'], 'applied')
+
+    def test_drain_placeholder_requires_unique_room_and_application(self):
+        records = [record('Shower Floor Tile', True, 'BTHF_BR5'),
+                   record('See Change Order for Linear Drain', True, 'BTHF_BR5')]
+        instructions = [{'order': 3,
+                         'text': 'Shower Drain - Bedroom #5 Full Bath - ADD - Linear Drain'}]
+        report = apply_changes(records, instructions)
+        rows = table_rows(records)
+        self.assertEqual(rows[:2], [['Shower Drain', '', 'Linear Drain', '', ''],
+                                   ['Drain riser plug', '', 'Drain riser plug', 1, 'EA']])
+        self.assertEqual(report[0]['application'], 'drain')
+
+    def test_missing_or_ambiguous_approved_change_keeps_placeholder_for_review(self):
+        for instructions in [[], [
+            {'order': 1, 'text': 'Tile - Bed #5 Bath - Wall Tile - Main Back Wall - Group 1: A 2x8, One'},
+            {'order': 1, 'text': 'Tile - Bed #5 Bath - Wall Tile - Main Back Wall - Group 1: B 2x8, Two'},
+        ]]:
+            records = [record('Shower Wall Tile', True, 'BTHF_BR5'),
+                       record('See Change Order for Tile Selection', True, 'BTHF_BR5')]
+            report = apply_changes(records, instructions)
+            self.assertTrue(any('See Change Order' in item[2] for item in table_rows(records)))
+            self.assertTrue(any(item['status'] == 'review' and item.get('room') == 'BTHF_BR5'
+                                for item in report))
+
+    def test_without_approved_heading_change_order_text_is_ignored(self):
+        self.assertEqual(read_changes('Change Order #5\n\u2022 Tile - Bed #5 Bath - ADD - Group 1: A'), [])
+
     def test_reads_only_current_approved_changes_in_order(self):
         text = '''Change Orders Approved
 Change Order #2

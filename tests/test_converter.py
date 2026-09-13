@@ -103,7 +103,7 @@ class ConverterTests(unittest.TestCase):
             rows = convert(SAMPLE, output, template_path=TEMPLATE)
             workbook = load_workbook(output, read_only=True, data_only=False)
             try:
-                self.assertEqual(workbook.sheetnames, ["Tile Order", "Data", "Source"])
+                self.assertEqual(workbook.sheetnames, ["Tile Order", "Data", "Source", "Change Review"])
                 self.assertEqual(workbook["Data"].max_row - 1, len(rows))
                 self.assertEqual(workbook["Tile Order"].max_column, 7)
                 self.assertEqual(

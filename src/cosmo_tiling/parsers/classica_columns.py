@@ -141,6 +141,7 @@ APPLICATION_ALIASES = {
     "shower wall tile": "shower_wall", "shower wall tiles": "shower_wall",
     "surround": "surround", "wall tile": "wall",
     "main back wall": "shower_wall_area", "side walls": "shower_wall_area",
+    "bench top": "shower_wall_area", "side walls & front of bench": "shower_wall_area",
     "accent": "accent", "niche tile": "accent",
 }
 LABEL_ALIASES = {

@@ -45,10 +45,16 @@ class ClassicaAppTests(unittest.TestCase):
             Workbook().save(path)
             append_source_sheets(path, {"rows": [{"room": "NEW_ROOM",
                 "type_description": "=literal", "selection_changed": "", "qty": "1 EA"}],
-                "change_report": []}, prefix="Revised ")
+                "change_report": [{"order": 2, "status": "review", "room": "NEW_ROOM",
+                    "application": "floor", "text": "See Change Order", "reason": "No match"}]},
+                prefix="Revised ")
             workbook = load_workbook(path)
             try:
                 self.assertEqual(workbook["Revised Source"]["B2"].value, "=literal")
                 self.assertEqual(workbook["Revised Source"]["B2"].data_type, "s")
+                self.assertEqual(
+                    [cell.value for cell in workbook["Revised Change Review"][1]],
+                    ["Change Order", "Status", "Room", "Application", "Instruction", "Reason"],
+                )
             finally:
                 workbook.close()
